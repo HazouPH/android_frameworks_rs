@@ -86,7 +86,7 @@ void printStructures(FILE *f) {
     for (ct=0; ct < apiCount; ct++) {
         const ApiEntry * api = &apis[ct];
         fprintf(f, "#define RS_CMD_ID_%s %i\n", api->name, ct+1);
-        fprintf(f, "struct __attribute__((packed)) RS_CMD_%s_rec {\n", api->name);
+        fprintf(f, "struct RS_CMD_%s_rec {\n", api->name);
         //fprintf(f, "    RsCommandHeader _hdr;\n");
 
         for (ct2=0; ct2 < api->paramCount; ct2++) {
@@ -704,6 +704,19 @@ int main(int argc, char **argv) {
         break;
 
         case '3': // rsgApiReplay.cpp
+        {
+            printFileHeader(f);
+            printPlaybackCpp(f);
+        }
+        break;
+
+        case '4': // rsgApiStream.cpp
+        {
+            printFileHeader(f);
+            printPlaybackCpp(f);
+        }
+
+        case '5': // rsgApiStreamReplay.cpp
         {
             printFileHeader(f);
             printPlaybackCpp(f);

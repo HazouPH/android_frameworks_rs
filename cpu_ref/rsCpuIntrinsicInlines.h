@@ -55,15 +55,18 @@ enum IntrinsicEnums {
 #define CVT_FUNC_2(typeout, typein)                             \
 static inline typeout##2 __attribute__((const, overloadable))   \
     convert_##typeout##2(typein##2 i) {                         \
-        return __builtin_convertvector(i, typeout##2);          \
+        typeout##2 f = {(typeout)i.x, (typeout)i.y};            \
+        return f;                                               \
     }                                                           \
 static inline typeout##3 __attribute__((const, overloadable))   \
     convert_##typeout##3(typein##3 i) {                         \
-        return __builtin_convertvector(i, typeout##3);          \
+        typeout##3 f = {(typeout)i.x, (typeout)i.y, (typeout)i.z}; \
+        return f;                                               \
     }                                                           \
 static inline typeout##4 __attribute__((const, overloadable))   \
     convert_##typeout##4(typein##4 i) {                         \
-        return __builtin_convertvector(i, typeout##4);          \
+        typeout##4 f = {(typeout)i.x, (typeout)i.y, (typeout)i.z, (typeout)i.w}; \
+        return f;                                               \
     }
 #define CVT_FUNC(type)  CVT_FUNC_2(type, uchar)     \
                         CVT_FUNC_2(type, char)      \
@@ -72,7 +75,6 @@ static inline typeout##4 __attribute__((const, overloadable))   \
                         CVT_FUNC_2(type, uint)      \
                         CVT_FUNC_2(type, int)       \
                         CVT_FUNC_2(type, float)
-
 CVT_FUNC(char)
 CVT_FUNC(uchar)
 CVT_FUNC(short)

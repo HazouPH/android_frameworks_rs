@@ -24,36 +24,43 @@ import java.util.ArrayList;
 import java.util.ListIterator;
 import java.util.Timer;
 import java.util.TimerTask;
-import android.app.ListActivity;
-import android.widget.ArrayAdapter;
+
 
 public class RSTestCore {
-    ListActivity mCtx;
+    int mWidth;
+    int mHeight;
+    Context mCtx;
 
-    public RSTestCore(ListActivity ctx) {
+    public RSTestCore(Context ctx) {
         mCtx = ctx;
     }
 
     private Resources mRes;
-    private RenderScript mRS;
+    private RenderScriptGL mRS;
+
+    private Font mFont;
+    ScriptField_ListAllocs_s mListAllocs;
+    int mLastX;
+    int mLastY;
+    private ScriptC_rslist mScript;
 
     private ArrayList<UnitTest> unitTests;
     private ListIterator<UnitTest> test_iter;
     private UnitTest activeTest;
     private boolean stopTesting;
 
-    private ScriptField_ListAllocs_s mListAllocs;
-
-    private ArrayAdapter<UnitTest> testAdapter;
-
     /* Periodic timer for ensuring future tests get scheduled */
     private Timer mTimer;
     public static final int RS_TIMER_PERIOD = 100;
 
-    public void init(RenderScript rs, Resources res) {
+    public void init(RenderScriptGL rs, Resources res, int width, int height) {
         mRS = rs;
         mRes = res;
+        mWidth = width;
+        mHeight = height;
         stopTesting = false;
+
+        mScript = new ScriptC_rslist(mRS, mRes, R.raw.rslist);
 
         unitTests = new ArrayList<UnitTest>();
 
@@ -90,10 +97,9 @@ public class RSTestCore {
         unitTests.add(new UT_int4(this, mRes, mCtx));
         unitTests.add(new UT_element(this, mRes, mCtx));
         unitTests.add(new UT_sampler(this, mRes, mCtx));
-        /*unitTests.add(new UT_program_store(this, mRes, mCtx));
+        unitTests.add(new UT_program_store(this, mRes, mCtx));
         unitTests.add(new UT_program_raster(this, mRes, mCtx));
-        unitTests.add(new UT_mesh(this, mRes, mCtx));*/
-        //unitTests.add(new UT_foreach_multi(this, mRes, mCtx));
+        unitTests.add(new UT_mesh(this, mRes, mCtx));
         unitTests.add(new UT_fp_mad(this, mRes, mCtx));
 
         /*
@@ -120,8 +126,12 @@ public class RSTestCore {
 
         mListAllocs.copyAll();
 
-        testAdapter = new ArrayAdapter<UnitTest>(mCtx, android.R.layout.simple_list_item_1, unitTests);
-        mCtx.setListAdapter(testAdapter);
+        mScript.bind_gList(mListAllocs);
+
+        mFont = Font.create(mRS, mRes, "serif", Font.Style.BOLD, 8);
+        mScript.set_gFont(mFont);
+
+        mRS.bindRootScript(mScript);
 
         test_iter = unitTests.listIterator();
         refreshTestResults(); /* Kick off the first test */
@@ -137,13 +147,6 @@ public class RSTestCore {
     }
 
     public void checkAndRunNextTest() {
-        mCtx.runOnUiThread(new Runnable() {
-                public void run() {
-                    if (testAdapter != null)
-                        testAdapter.notifyDataSetChanged();
-                }
-            });
-
         if (activeTest != null) {
             if (!activeTest.isAlive()) {
                 /* Properly clean up on our last test */
@@ -176,6 +179,13 @@ public class RSTestCore {
 
     public void refreshTestResults() {
         checkAndRunNextTest();
+
+        if (mListAllocs != null && mScript != null && mRS != null) {
+            mListAllocs.copyAll();
+
+            mScript.bind_gList(mListAllocs);
+            mRS.bindRootScript(mScript);
+        }
     }
 
     public void cleanup() {
@@ -201,4 +211,28 @@ public class RSTestCore {
 
     }
 
+    public void newTouchPosition(float x, float y, float pressure, int id) {
+    }
+
+    public void onActionDown(int x, int y) {
+        mScript.set_gDY(0.0f);
+        mLastX = x;
+        mLastY = y;
+        refreshTestResults();
+    }
+
+    public void onActionMove(int x, int y) {
+        int dx = mLastX - x;
+        int dy = mLastY - y;
+
+        if (Math.abs(dy) <= 2) {
+            dy = 0;
+        }
+
+        mScript.set_gDY(dy);
+
+        mLastX = x;
+        mLastY = y;
+        refreshTestResults();
+    }
 }

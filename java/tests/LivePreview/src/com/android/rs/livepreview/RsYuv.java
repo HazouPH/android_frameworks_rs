@@ -27,7 +27,6 @@ import android.renderscript.Matrix3f;
 import android.renderscript.RenderScript;
 import android.util.Log;
 import android.view.TextureView;
-import android.view.Surface;
 import android.view.View;
 
 import android.content.res.Resources;
@@ -45,7 +44,7 @@ public class RsYuv implements TextureView.SurfaceTextureListener
     private ScriptC_yuv mScript;
     private ScriptIntrinsicYuvToRGB mYuv;
     private boolean mHaveSurface;
-    private Surface mSurface;
+    private SurfaceTexture mSurface;
     private ScriptGroup mGroup;
 
     RsYuv(RenderScript rs) {
@@ -56,7 +55,7 @@ public class RsYuv implements TextureView.SurfaceTextureListener
 
     void setupSurface() {
         if (mAllocationOut != null) {
-            mAllocationOut.setSurface(mSurface);
+            mAllocationOut.setSurfaceTexture(mSurface);
         }
         if (mSurface != null) {
             mHaveSurface = true;
@@ -117,7 +116,7 @@ public class RsYuv implements TextureView.SurfaceTextureListener
 
             //mYuv.forEach(mAllocationOut);
             //mScript.forEach_root(mAllocationOut, mAllocationOut);
-            mAllocationOut.ioSend();
+            mAllocationOut.ioSendOutput();
         }
     }
 
@@ -126,21 +125,21 @@ public class RsYuv implements TextureView.SurfaceTextureListener
     @Override
     public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
         android.util.Log.v("cpa", "onSurfaceTextureAvailable " + surface);
-        mSurface = new Surface(surface);
+        mSurface = surface;
         setupSurface();
     }
 
     @Override
     public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height) {
         android.util.Log.v("cpa", "onSurfaceTextureSizeChanged " + surface);
-        mSurface = new Surface(surface);
+        mSurface = surface;
         setupSurface();
     }
 
     @Override
     public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
         android.util.Log.v("cpa", "onSurfaceTextureDestroyed " + surface);
-        mSurface = null;
+        mSurface = surface;
         setupSurface();
         return true;
     }

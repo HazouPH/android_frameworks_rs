@@ -21,6 +21,8 @@
 #include "ELFSection.h"
 #include "MemChunk.h"
 
+#include <llvm/ADT/OwningPtr.h>
+
 template <unsigned Bitwidth>
 class ELFSectionBits : public ELFSection<Bitwidth> {
 protected:

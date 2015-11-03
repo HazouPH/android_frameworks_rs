@@ -94,33 +94,13 @@ void Allocation::syncAll(Context *rsc, RsAllocationUsageType src) {
     rsc->mHal.funcs.allocation.syncAll(rsc, this, src);
 }
 
-void * Allocation::getPointer(const Context *rsc, uint32_t lod, RsAllocationCubemapFace face,
-                          uint32_t z, uint32_t array, size_t *stride) {
-
-    if ((lod >= mHal.drvState.lodCount) ||
-        (z && (z >= mHal.drvState.lod[lod].dimZ)) ||
-        ((face != RS_ALLOCATION_CUBEMAP_FACE_POSITIVE_X) && !mHal.state.hasFaces) ||
-        (array != 0)) {
-        return NULL;
-    }
-
-    size_t s = 0;
-    //void *ptr = mRSC->mHal.funcs.allocation.lock1D(rsc, this);
-    if ((stride != NULL) && mHal.drvState.lod[0].dimY) {
-        *stride = mHal.drvState.lod[lod].stride;
-    }
-    return mHal.drvState.lod[lod].mallocPtr;
-}
-
 void Allocation::data(Context *rsc, uint32_t xoff, uint32_t lod,
                          uint32_t count, const void *data, size_t sizeBytes) {
     const size_t eSize = mHal.state.type->getElementSizeBytes();
 
     if ((count * eSize) != sizeBytes) {
-        char buf[1024];
-        sprintf(buf, "Allocation::subData called with mismatched size expected %zu, got %zu",
-                (count * eSize), sizeBytes);
-        rsc->setError(RS_ERROR_BAD_VALUE, buf);
+        ALOGE("Allocation::subData called with mismatched size expected %zu, got %zu",
+             (count * eSize), sizeBytes);
         mHal.state.type->dumpLOGV("type info");
         return;
     }
@@ -147,10 +127,8 @@ void Allocation::read(Context *rsc, uint32_t xoff, uint32_t lod,
     const size_t eSize = mHal.state.type->getElementSizeBytes();
 
     if ((count * eSize) != sizeBytes) {
-        char buf[1024];
-        sprintf(buf, "Allocation::read called with mismatched size expected %zu, got %zu",
-                (count * eSize), sizeBytes);
-        rsc->setError(RS_ERROR_BAD_VALUE, buf);
+        ALOGE("Allocation::read called with mismatched size expected %zu, got %zu",
+             (count * eSize), sizeBytes);
         mHal.state.type->dumpLOGV("type info");
         return;
     }
@@ -166,9 +144,8 @@ void Allocation::read(Context *rsc, uint32_t xoff, uint32_t yoff, uint32_t lod, 
         stride = lineSize;
     } else {
         if ((lineSize * h) != sizeBytes) {
-            char buf[1024];
-            sprintf(buf, "Allocation size mismatch, expected %zu, got %zu", (lineSize * h), sizeBytes);
-            rsc->setError(RS_ERROR_BAD_VALUE, buf);
+            ALOGE("Allocation size mismatch, expected %zu, got %zu", (lineSize * h), sizeBytes);
+            rsAssert(!"Allocation::read called with mismatched size");
             return;
         }
     }
@@ -193,11 +170,13 @@ void Allocation::elementData(Context *rsc, uint32_t x, const void *data,
     size_t eSize = mHal.state.elementSizeBytes;
 
     if (cIdx >= mHal.state.type->getElement()->getFieldCount()) {
+        ALOGE("Error Allocation::subElementData component %i out of range.", cIdx);
         rsc->setError(RS_ERROR_BAD_VALUE, "subElementData component out of range.");
         return;
     }
 
     if (x >= mHal.drvState.lod[0].dimX) {
+        ALOGE("Error Allocation::subElementData X offset %i out of range.", x);
         rsc->setError(RS_ERROR_BAD_VALUE, "subElementData X offset out of range.");
         return;
     }
@@ -205,6 +184,7 @@ void Allocation::elementData(Context *rsc, uint32_t x, const void *data,
     const Element * e = mHal.state.type->getElement()->getField(cIdx);
     uint32_t elemArraySize = mHal.state.type->getElement()->getFieldArraySize(cIdx);
     if (sizeBytes != e->getSizeBytes() * elemArraySize) {
+        ALOGE("Error Allocation::subElementData data size %zu does not match field size %zu.", sizeBytes, e->getSizeBytes());
         rsc->setError(RS_ERROR_BAD_VALUE, "subElementData bad size.");
         return;
     }
@@ -218,16 +198,19 @@ void Allocation::elementData(Context *rsc, uint32_t x, uint32_t y,
     size_t eSize = mHal.state.elementSizeBytes;
 
     if (x >= mHal.drvState.lod[0].dimX) {
+        ALOGE("Error Allocation::subElementData X offset %i out of range.", x);
         rsc->setError(RS_ERROR_BAD_VALUE, "subElementData X offset out of range.");
         return;
     }
 
     if (y >= mHal.drvState.lod[0].dimY) {
+        ALOGE("Error Allocation::subElementData X offset %i out of range.", x);
         rsc->setError(RS_ERROR_BAD_VALUE, "subElementData X offset out of range.");
         return;
     }
 
     if (cIdx >= mHal.state.type->getElement()->getFieldCount()) {
+        ALOGE("Error Allocation::subElementData component %i out of range.", cIdx);
         rsc->setError(RS_ERROR_BAD_VALUE, "subElementData component out of range.");
         return;
     }
@@ -235,6 +218,7 @@ void Allocation::elementData(Context *rsc, uint32_t x, uint32_t y,
     const Element * e = mHal.state.type->getElement()->getField(cIdx);
     uint32_t elemArraySize = mHal.state.type->getElement()->getFieldArraySize(cIdx);
     if (sizeBytes != e->getSizeBytes() * elemArraySize) {
+        ALOGE("Error Allocation::subElementData data size %zu does not match field size %zu.", sizeBytes, e->getSizeBytes());
         rsc->setError(RS_ERROR_BAD_VALUE, "subElementData bad size.");
         return;
     }
@@ -376,8 +360,7 @@ Allocation *Allocation::createFromStream(Context *rsc, IStream *stream) {
     // First make sure we are reading the correct object
     RsA3DClassID classID = (RsA3DClassID)stream->loadU32();
     if (classID != RS_A3D_CLASS_ID_ALLOCATION) {
-        rsc->setError(RS_ERROR_FATAL_DRIVER,
-                      "allocation loading failed due to corrupt file. (invalid id)\n");
+        ALOGE("allocation loading skipped due to invalid class id\n");
         return NULL;
     }
 
@@ -398,8 +381,7 @@ Allocation *Allocation::createFromStream(Context *rsc, IStream *stream) {
     uint32_t packedSize = alloc->getPackedSize();
     if (dataSize != type->getPackedSizeBytes() &&
         dataSize != packedSize) {
-        rsc->setError(RS_ERROR_FATAL_DRIVER,
-                      "allocation loading failed due to corrupt file. (invalid size)\n");
+        ALOGE("failed to read allocation because numbytes written is not the same loaded type wants\n");
         ObjectBase::checkDelete(alloc);
         ObjectBase::checkDelete(type);
         return NULL;
@@ -438,15 +420,6 @@ void Allocation::decRefs(const void *ptr, size_t ct, size_t startOff) const {
     mHal.state.type->decRefs(ptr, ct, startOff);
 }
 
-void Allocation::callUpdateCacheObject(const Context *rsc, void *dstObj) const {
-    if (rsc->mHal.funcs.allocation.updateCachedObject != NULL) {
-        rsc->mHal.funcs.allocation.updateCachedObject(rsc, this, (rs_allocation *)dstObj);
-    } else {
-        *((const void **)dstObj) = this;
-    }
-}
-
-
 void Allocation::freeChildrenUnlocked () {
     void *ptr = mRSC->mHal.funcs.allocation.lock1D(mRSC, this);
     decRefs(ptr, mHal.state.type->getCellCount(), 0);
@@ -482,23 +455,22 @@ void Allocation::resize1D(Context *rsc, uint32_t dimX) {
 }
 
 void Allocation::resize2D(Context *rsc, uint32_t dimX, uint32_t dimY) {
-    rsc->setError(RS_ERROR_FATAL_DRIVER, "resize2d not implemented");
+    ALOGE("not implemented");
 }
 
 #ifndef RS_COMPATIBILITY_LIB
 void Allocation::NewBufferListener::onFrameAvailable() {
     intptr_t ip = (intptr_t)alloc;
-    rsc->sendMessageToClient(&ip, RS_MESSAGE_TO_CLIENT_NEW_BUFFER, 0, sizeof(ip), true);
+    rsc->sendMessageToClient(NULL, RS_MESSAGE_TO_CLIENT_NEW_BUFFER, ip, 0, true);
 }
 #endif
 
 void * Allocation::getSurface(const Context *rsc) {
 #ifndef RS_COMPATIBILITY_LIB
     // Configure GrallocConsumer to be in asynchronous mode
-    sp<IGraphicBufferProducer> bp;
-    sp<IGraphicBufferConsumer> bc;
-    BufferQueue::createBufferQueue(&bp, &bc);
-    mGrallocConsumer = new GrallocConsumer(this, bc);
+    sp<BufferQueue> bq = new BufferQueue();
+    mGrallocConsumer = new GrallocConsumer(this, bq);
+    sp<IGraphicBufferProducer> bp = bq;
     bp->incStrong(NULL);
 
     mBufferListener = new NewBufferListener();
@@ -541,19 +513,10 @@ void Allocation::ioReceive(const Context *rsc) {
 #endif
 }
 
-bool Allocation::hasSameDims(const Allocation *other) const {
-    const Type *type0 = this->getType(),
-               *type1 = other->getType();
-
-    return (type0->getCellCount() == type1->getCellCount()) &&
-           (type0->getDimLOD()    == type1->getDimLOD())    &&
-           (type0->getDimFaces()  == type1->getDimFaces())  &&
-           (type0->getDimYuv()    == type1->getDimYuv())    &&
-           (type0->getDimX()      == type1->getDimX())      &&
-           (type0->getDimY()      == type1->getDimY())      &&
-           (type0->getDimZ()      == type1->getDimZ());
+void Allocation::destroy(const Context *rsc) {
+    freeChildrenUnlocked();
+    rsc->mHal.funcs.allocation.destroy(rsc, this);
 }
-
 
 /////////////////
 //
@@ -633,9 +596,9 @@ void rsi_AllocationResize2D(Context *rsc, RsAllocation va, uint32_t dimX, uint32
 }
 
 RsAllocation rsi_AllocationCreateTyped(Context *rsc, RsType vtype,
-                                       RsAllocationMipmapControl mipmaps,
+                                       RsAllocationMipmapControl mips,
                                        uint32_t usages, uintptr_t ptr) {
-    Allocation * alloc = Allocation::createAllocation(rsc, static_cast<Type *>(vtype), usages, mipmaps, (void*)ptr);
+    Allocation * alloc = Allocation::createAllocation(rsc, static_cast<Type *>(vtype), usages, mips, (void*)ptr);
     if (!alloc) {
         return NULL;
     }
@@ -644,11 +607,11 @@ RsAllocation rsi_AllocationCreateTyped(Context *rsc, RsType vtype,
 }
 
 RsAllocation rsi_AllocationCreateFromBitmap(Context *rsc, RsType vtype,
-                                            RsAllocationMipmapControl mipmaps,
+                                            RsAllocationMipmapControl mips,
                                             const void *data, size_t sizeBytes, uint32_t usages) {
     Type *t = static_cast<Type *>(vtype);
 
-    RsAllocation vTexAlloc = rsi_AllocationCreateTyped(rsc, vtype, mipmaps, usages, 0);
+    RsAllocation vTexAlloc = rsi_AllocationCreateTyped(rsc, vtype, mips, usages, 0);
     Allocation *texAlloc = static_cast<Allocation *>(vTexAlloc);
     if (texAlloc == NULL) {
         ALOGE("Memory allocation failure");
@@ -657,7 +620,7 @@ RsAllocation rsi_AllocationCreateFromBitmap(Context *rsc, RsType vtype,
 
     texAlloc->data(rsc, 0, 0, 0, RS_ALLOCATION_CUBEMAP_FACE_POSITIVE_X,
                    t->getDimX(), t->getDimY(), data, sizeBytes, 0);
-    if (mipmaps == RS_ALLOCATION_MIPMAP_FULL) {
+    if (mips == RS_ALLOCATION_MIPMAP_FULL) {
         rsc->mHal.funcs.allocation.generateMipmaps(rsc, texAlloc);
     }
 
@@ -666,14 +629,14 @@ RsAllocation rsi_AllocationCreateFromBitmap(Context *rsc, RsType vtype,
 }
 
 RsAllocation rsi_AllocationCubeCreateFromBitmap(Context *rsc, RsType vtype,
-                                                RsAllocationMipmapControl mipmaps,
+                                                RsAllocationMipmapControl mips,
                                                 const void *data, size_t sizeBytes, uint32_t usages) {
     Type *t = static_cast<Type *>(vtype);
 
     // Cubemap allocation's faces should be Width by Width each.
     // Source data should have 6 * Width by Width pixels
     // Error checking is done in the java layer
-    RsAllocation vTexAlloc = rsi_AllocationCreateTyped(rsc, vtype, mipmaps, usages, 0);
+    RsAllocation vTexAlloc = rsi_AllocationCreateTyped(rsc, vtype, mips, usages, 0);
     Allocation *texAlloc = static_cast<Allocation *>(vTexAlloc);
     if (texAlloc == NULL) {
         ALOGE("Memory allocation failure");
@@ -695,7 +658,7 @@ RsAllocation rsi_AllocationCubeCreateFromBitmap(Context *rsc, RsType vtype,
         sourcePtr += copySize;
     }
 
-    if (mipmaps == RS_ALLOCATION_MIPMAP_FULL) {
+    if (mips == RS_ALLOCATION_MIPMAP_FULL) {
         rsc->mHal.funcs.allocation.generateMipmaps(rsc, texAlloc);
     }
 
@@ -757,13 +720,9 @@ void rsi_AllocationIoReceive(Context *rsc, RsAllocation valloc) {
     alloc->ioReceive(rsc);
 }
 
-void *rsi_AllocationGetPointer(Context *rsc, RsAllocation valloc,
-                          uint32_t lod, RsAllocationCubemapFace face,
-                          uint32_t z, uint32_t array, size_t *stride, size_t strideLen) {
+void rsi_AllocationDestroy(Context *rsc, RsAllocation valloc) {
     Allocation *alloc = static_cast<Allocation *>(valloc);
-    rsAssert(strideLen == sizeof(size_t));
-
-    return alloc->getPointer(rsc, lod, face, z, array, stride);
+    alloc->destroy(rsc);
 }
 
 void rsi_Allocation1DRead(Context *rsc, RsAllocation va, uint32_t xoff, uint32_t lod,

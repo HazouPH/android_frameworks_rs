@@ -30,7 +30,7 @@ public class Greyscale extends TestBase {
     private ScriptC_greyscale mScript;
 
     public void createTest(android.content.res.Resources res) {
-        mScript = new ScriptC_greyscale(mRS);
+        mScript = new ScriptC_greyscale(mRS, res, R.raw.greyscale);
     }
 
     public void runTest() {

@@ -19,6 +19,8 @@ package com.android.rs.test;
 import android.content.Context;
 import android.content.res.Resources;
 import android.renderscript.*;
+import android.renderscript.Sampler;
+import android.renderscript.Sampler.Value;
 
 public class UT_sampler extends UnitTest {
     private Resources mRes;
@@ -36,29 +38,29 @@ public class UT_sampler extends UnitTest {
 
     private Sampler.Builder getDefaultBuilder(RenderScript RS) {
         Sampler.Builder b = new Sampler.Builder(RS);
-        b.setMinification(Sampler.Value.NEAREST);
-        b.setMagnification(Sampler.Value.NEAREST);
-        b.setWrapS(Sampler.Value.CLAMP);
-        b.setWrapT(Sampler.Value.CLAMP);
+        b.setMinification(Value.NEAREST);
+        b.setMagnification(Value.NEAREST);
+        b.setWrapS(Value.CLAMP);
+        b.setWrapT(Value.CLAMP);
         b.setAnisotropy(1.0f);
         return b;
     }
 
     private void initializeGlobals(RenderScript RS, ScriptC_sampler s) {
         Sampler.Builder b = getDefaultBuilder(RS);
-        b.setMinification(Sampler.Value.LINEAR_MIP_LINEAR);
+        b.setMinification(Value.LINEAR_MIP_LINEAR);
         minification = b.create();
 
         b = getDefaultBuilder(RS);
-        b.setMagnification(Sampler.Value.LINEAR);
+        b.setMagnification(Value.LINEAR);
         magnification = b.create();
 
         b = getDefaultBuilder(RS);
-        b.setWrapS(Sampler.Value.WRAP);
+        b.setWrapS(Value.WRAP);
         wrapS = b.create();
 
         b = getDefaultBuilder(RS);
-        b.setWrapT(Sampler.Value.WRAP);
+        b.setWrapT(Value.WRAP);
         wrapT = b.create();
 
         b = getDefaultBuilder(RS);

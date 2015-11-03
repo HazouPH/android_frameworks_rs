@@ -53,7 +53,7 @@ public class ColorMatrix extends TestBase {
                 mIntrinsic.setColorMatrix(m);
             }
         } else {
-            mScript = new ScriptC_colormatrix(mRS);
+            mScript = new ScriptC_colormatrix(mRS, res, R.raw.colormatrix);
             mScript.invoke_setMatrix(m);
         }
     }

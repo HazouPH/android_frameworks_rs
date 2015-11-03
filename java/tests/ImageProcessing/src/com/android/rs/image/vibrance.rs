@@ -25,10 +25,13 @@ static const float Bf = 0.114f;
 
 static float Vib = 0.f;
 
-uchar4 RS_KERNEL vibranceKernel(uchar4 in) {
-    int r = in.r;
-    int g = in.g;
-    int b = in.b;
+void vibranceKernel(const uchar4 *in, uchar4 *out) {
+
+    float R, G, B;
+
+    int r = in->r;
+    int g = in->g;
+    int b = in->b;
     float red = (r-max(g, b)) * (1.f / 256.f);
     float S = (float)(Vib/(1+native_exp(-red*3)))+1;
     float MS = 1.0f - S;
@@ -36,21 +39,18 @@ uchar4 RS_KERNEL vibranceKernel(uchar4 in) {
     float Gt = Gf * MS;
     float Bt = Bf * MS;
     int t = (r + g) >> 1;
-
-    float R = r;
-    float G = g;
-    float B = b;
+    R = r;
+    G = g;
+    B = b;
 
     float Rc = R * (Rt + S) + G * Gt + B * Bt;
     float Gc = R * Rt + G * (Gt + S) + B * Bt;
     float Bc = R * Rt + G * Gt + B * (Bt + S);
 
-    uchar4 o;
-    o.r = rsClamp(Rc, 0, 255);
-    o.g = rsClamp(Gc, 0, 255);
-    o.b = rsClamp(Bc, 0, 255);
-    o.a = 0xff;
-    return o;
+    out->r = rsClamp(Rc, 0, 255);
+    out->g = rsClamp(Gc, 0, 255);
+    out->b = rsClamp(Bc, 0, 255);
+
 }
 
 void prepareVibrance() {

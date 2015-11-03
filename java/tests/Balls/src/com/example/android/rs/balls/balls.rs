@@ -46,9 +46,8 @@ int root() {
     int2 gridDims = (int2){ rsAllocationGetDimX(gGrid),
                             rsAllocationGetDimY(gGrid) };
 
-    rs_allocation aNull;  // Empty rs_allocation, since we don't have an input.
-    rs_allocation aout = rsGetAllocation(balls);
-    int32_t dimX = rsAllocationGetDimX(aout);
+    rs_allocation ain = rsGetAllocation(balls);
+    int32_t dimX = rsAllocationGetDimX(ain);
 
     // Binning
     // Clear the particle list
@@ -93,7 +92,7 @@ int root() {
     }
 
 
-    rsForEach(physics_script, aNull, aout);
+    rsForEach(physics_script, ain, ain);
 
     for (uint32_t ct=0; ct < dimX; ct++) {
         point[ct].position = balls[ct].position;

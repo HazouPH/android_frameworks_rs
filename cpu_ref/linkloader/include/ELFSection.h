@@ -18,6 +18,7 @@
 #define ELF_SECTION_H
 
 #include "ELFTypes.h"
+#include <llvm/ADT/OwningPtr.h>
 
 template <unsigned Bitwidth>
 class ELFSection {

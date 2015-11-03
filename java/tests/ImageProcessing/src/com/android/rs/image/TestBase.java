@@ -19,7 +19,9 @@ package com.android.rs.image;
 import android.app.Activity;
 import android.content.Context;
 import android.os.Bundle;
+import android.graphics.BitmapFactory;
 import android.graphics.Bitmap;
+import android.graphics.Canvas;
 import android.renderscript.ScriptC;
 import android.renderscript.RenderScript;
 import android.renderscript.Type;
@@ -102,7 +104,7 @@ public class TestBase  {
         return false;
     }
 
-    public final void createBaseTest(ImageProcessingActivity ipact) {
+    public final void createBaseTest(ImageProcessingActivity ipact, Bitmap b, Bitmap b2, Bitmap outb) {
         act = ipact;
         mRS = ipact.mRS;
         mRS.setMessageHandler(new MessageProcessor(act));

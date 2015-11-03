@@ -20,6 +20,7 @@
 #include "utils/helper.h"
 #include "utils/raw_ostream.h"
 
+#include <llvm/ADT/OwningPtr.h>
 #include <llvm/Support/Format.h>
 #include <llvm/Support/raw_ostream.h>
 
@@ -29,7 +30,7 @@ ELFSectionStrTab<Bitwidth> *
 ELFSectionStrTab<Bitwidth>::read(Archiver &AR,
                                  ELFSectionHeaderTy const *sh) {
 
-  std::unique_ptr<ELFSectionStrTab> st(new ELFSectionStrTab());
+  llvm::OwningPtr<ELFSectionStrTab> st(new ELFSectionStrTab());
   st->buf.resize(sh->getSize());
 
   // Save section_header
@@ -45,7 +46,7 @@ ELFSectionStrTab<Bitwidth>::read(Archiver &AR,
     return 0;
   }
 
-  return st.release();
+  return st.take();
 }
 
 template <unsigned Bitwidth>

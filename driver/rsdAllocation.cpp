@@ -317,13 +317,7 @@ static size_t AllocationBuildPointerTable(const Context *rsc, const Allocation *
 
     size_t o = alloc->mHal.drvState.lod[0].stride * rsMax(alloc->mHal.drvState.lod[0].dimY, 1u) *
             rsMax(alloc->mHal.drvState.lod[0].dimZ, 1u);
-    if (alloc->mHal.state.yuv) {
-        o += DeriveYUVLayout(alloc->mHal.state.yuv, &alloc->mHal.drvState);
-
-        for (uint32_t ct = 1; ct < alloc->mHal.drvState.lodCount; ct++) {
-            offsets[ct] = (size_t)alloc->mHal.drvState.lod[ct].mallocPtr;
-        }
-    } else if(alloc->mHal.drvState.lodCount > 1) {
+    if(alloc->mHal.drvState.lodCount > 1) {
         uint32_t tx = alloc->mHal.drvState.lod[0].dimX;
         uint32_t ty = alloc->mHal.drvState.lod[0].dimY;
         uint32_t tz = alloc->mHal.drvState.lod[0].dimZ;
@@ -338,6 +332,12 @@ static size_t AllocationBuildPointerTable(const Context *rsc, const Allocation *
             if (tx > 1) tx >>= 1;
             if (ty > 1) ty >>= 1;
             if (tz > 1) tz >>= 1;
+        }
+    } else if (alloc->mHal.state.yuv) {
+        o += DeriveYUVLayout(alloc->mHal.state.yuv, &alloc->mHal.drvState);
+
+        for (uint32_t ct = 1; ct < alloc->mHal.drvState.lodCount; ct++) {
+            offsets[ct] = (size_t)alloc->mHal.drvState.lod[ct].mallocPtr;
         }
     }
 
@@ -356,9 +356,37 @@ static size_t AllocationBuildPointerTable(const Context *rsc, const Allocation *
     return allocSize;
 }
 
-static uint8_t* allocAlignedMemory(size_t allocSize, bool forceZero) {
-    // We align all allocations to a 16-byte boundary.
-    uint8_t* ptr = (uint8_t *)memalign(16, allocSize);
+static size_t computeAlignment(size_t elementSize) {
+    // Some architectures (e.g. SSE/AVX with the [v]movap*
+    // instructions) have alignment requirements beyond 16-byte,
+    // but that isn't captured by the driver framework.
+    // As RS assumes data are allocated element-wise aligned, we just need
+    // to ensure the allocated one is aligned to the one rounded to
+    // multiple of sizeof(void *) and power of 2.
+
+    size_t alignment = elementSize;
+    size_t ptrSize = sizeof(void *);
+    // Round alignment to the nearest power of 2.
+    alignment--;
+    alignment |= alignment >> 1;
+    alignment |= alignment >> 2;
+    alignment |= alignment >> 4;
+    alignment |= alignment >> 8;
+    alignment |= alignment >> 16;
+#if __SIZEOF_SIZE_T__ == 8
+    alignment |= alignment >> 32;
+#endif
+    alignment++;
+    // Round alignment to multiple of sizeof(void *).
+    alignment = ((alignment + ptrSize - 1) / ptrSize) * ptrSize;
+
+    // Reducing alignment below 16 bytes may actually reduce performance with minimal efficiency gains
+    return (alignment > 16 ? alignment : 16);
+}
+
+static uint8_t* allocAlignedMemory(size_t allocSize, bool forceZero, size_t alignment) {
+
+    uint8_t* ptr = (uint8_t *)memalign(alignment, allocSize);
     if (!ptr) {
         return NULL;
     }
@@ -397,13 +425,15 @@ bool rsdAllocationInit(const Context *rsc, Allocation *alloc, bool forceZero) {
             return false;
         }
 
-        // rows must be 16-byte aligned
+        // rows must be naturally aligned
         // validate that here, otherwise fall back to not use the user-backed allocation
-        if (((alloc->getType()->getDimX() * alloc->getType()->getElement()->getSizeBytes()) % 16) != 0) {
+        size_t alignment = computeAlignment(alloc->getType()->getElementSizeBytes());
+
+        if (((alloc->getType()->getDimX() * alloc->getType()->getElement()->getSizeBytes()) % alignment) != 0) {
             ALOGV("User-backed allocation failed stride requirement, falling back to separate allocation");
             drv->useUserProvidedPtr = false;
 
-            ptr = allocAlignedMemory(allocSize, forceZero);
+            ptr = allocAlignedMemory(allocSize, forceZero, alignment);
             if (!ptr) {
                 alloc->mHal.drv = NULL;
                 free(drv);
@@ -415,7 +445,8 @@ bool rsdAllocationInit(const Context *rsc, Allocation *alloc, bool forceZero) {
             ptr = (uint8_t*)alloc->mHal.state.userProvidedPtr;
         }
     } else {
-        ptr = allocAlignedMemory(allocSize, forceZero);
+        size_t alignment = computeAlignment(alloc->getType()->getElementSizeBytes());
+        ptr = allocAlignedMemory(allocSize, forceZero, alignment);
         if (!ptr) {
             alloc->mHal.drv = NULL;
             free(drv);
@@ -463,18 +494,12 @@ bool rsdAllocationInit(const Context *rsc, Allocation *alloc, bool forceZero) {
         rsdAllocationData2D(rsc, alloc, 0, 0, 0, RS_ALLOCATION_CUBEMAP_FACE_POSITIVE_X, alloc->getType()->getDimX(), alloc->getType()->getDimY(), alloc->mHal.state.userProvidedPtr, allocSize, 0);
     }
 
-
-#ifdef RS_FIND_OFFSETS
-    ALOGE("pointer for allocation: %p", alloc);
-    ALOGE("pointer for allocation.drv: %p", &alloc->mHal.drv);
-#endif
-
-
     return true;
 }
 
 void rsdAllocationDestroy(const Context *rsc, Allocation *alloc) {
     DrvAllocation *drv = (DrvAllocation *)alloc->mHal.drv;
+    if (!drv) return;
 
 #ifndef RS_COMPATIBILITY_LIB
     if (drv->bufferID) {
@@ -518,10 +543,6 @@ void rsdAllocationDestroy(const Context *rsc, Allocation *alloc) {
             GraphicBufferMapper &mapper = GraphicBufferMapper::get();
             mapper.unlock(drv->wndBuffer->handle);
             int32_t r = nw->queueBuffer(nw, drv->wndBuffer, -1);
-
-            drv->wndSurface = NULL;
-            native_window_api_disconnect(nw, NATIVE_WINDOW_API_CPU);
-            nw->decStrong(NULL);
         }
     }
 #endif
@@ -610,7 +631,7 @@ void rsdAllocationSyncAll(const Context *rsc, const Allocation *alloc,
         return;
     }
 
-    rsAssert(src == RS_ALLOCATION_USAGE_SCRIPT || src == RS_ALLOCATION_USAGE_SHARED);
+    rsAssert(src == RS_ALLOCATION_USAGE_SCRIPT);
 
     if (alloc->mHal.state.usageFlags & RS_ALLOCATION_USAGE_GRAPHICS_TEXTURE) {
         UploadToTexture(rsc, alloc);
@@ -625,13 +646,7 @@ void rsdAllocationSyncAll(const Context *rsc, const Allocation *alloc,
     }
 
     if (alloc->mHal.state.usageFlags & RS_ALLOCATION_USAGE_SHARED) {
-
-        if (src == RS_ALLOCATION_USAGE_SHARED) {
-            // just a memory fence for the CPU driver
-            // vendor drivers probably want to flush any dirty cachelines for
-            // this particular Allocation
-            __sync_synchronize();
-        }
+        // NOP in CPU driver for now
     }
 
     drv->uploadDeferred = false;
@@ -1195,23 +1210,4 @@ uint32_t rsdAllocationGrallocBits(const android::renderscript::Context *rsc,
 {
     return 0;
 }
-
-void rsdAllocationUpdateCachedObject(const Context *rsc,
-                                     const Allocation *alloc,
-                                     rs_allocation *obj)
-{
-    obj->p = alloc;
-#ifdef __LP64__
-    if (alloc != NULL) {
-        obj->r = alloc->mHal.drvState.lod[0].mallocPtr;
-        obj->v1 = alloc->mHal.drv;
-        obj->v2 = (void *)alloc->mHal.drvState.lod[0].stride;
-    } else {
-        obj->r = NULL;
-        obj->v1 = NULL;
-        obj->v2 = NULL;
-    }
-#endif
-}
-
 

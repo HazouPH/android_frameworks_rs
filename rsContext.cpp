@@ -23,6 +23,7 @@
 
 #ifndef RS_COMPATIBILITY_LIB
 #include "rsMesh.h"
+#include <ui/FramebufferNativeWindow.h>
 #include <gui/DisplayEventReceiver.h>
 #endif
 
@@ -33,7 +34,6 @@
 #include <sys/syscall.h>
 #include <string.h>
 #include <dlfcn.h>
-#include <inttypes.h>
 #include <unistd.h>
 
 #if !defined(RS_SERVER) && !defined(RS_COMPATIBILITY_LIB) && \
@@ -184,8 +184,7 @@ void Context::timerPrint() {
 
 
     if (props.mLogTimes) {
-        ALOGV("RS: Frame (%i),   Script %2.1f%% (%i),  Swap %2.1f%% (%i),  Idle %2.1f%% (%" PRIi64 "),  "
-              "Internal %2.1f%% (%" PRIi64 "), Avg fps: %u",
+        ALOGV("RS: Frame (%i),   Script %2.1f%% (%i),  Swap %2.1f%% (%i),  Idle %2.1f%% (%lli),  Internal %2.1f%% (%lli), Avg fps: %u",
              mTimeMSLastFrame,
              100.0 * mTimers[RS_TIMER_SCRIPT] / total, mTimeMSLastScript,
              100.0 * mTimers[RS_TIMER_CLEAR_SWAP] / total, mTimeMSLastSwap,
@@ -244,14 +243,15 @@ void Context::displayDebugStats() {
 #endif
 }
 
-bool Context::loadRuntime(const char* filename, Context* rsc) {
-
-    // TODO: store the driverSO somewhere so we can dlclose later
+/*
+ * Load RS driver and initialize with rsdHalInit function.
+ */
+bool Context::loadRuntime(const char* filename, Context* rsc, void **mLib) {
     void *driverSO = NULL;
 
     driverSO = dlopen(filename, RTLD_LAZY);
     if (driverSO == NULL) {
-        ALOGE("Failed loading RS driver: %s", dlerror());
+        ALOGE("Failed to load RS driver: %s (error: %s)", filename, dlerror());
         return false;
     }
 
@@ -269,18 +269,21 @@ bool Context::loadRuntime(const char* filename, Context* rsc) {
 
     if (halInit == NULL) {
         dlclose(driverSO);
-        ALOGE("Failed to find rsdHalInit: %s", dlerror());
+        ALOGE("Failed to find rsdHalInit in RS driver: %s, error: %s", filename, dlerror());
         return false;
     }
 
     if (!(*halInit)(rsc, 0, 0)) {
         dlclose(driverSO);
-        ALOGE("Hal init failed");
+        ALOGE("%s Hal init failed.", filename);
         return false;
     }
-
     //validate HAL struct
-
+    // store the driverSO so we can dlclose later
+    if(mLib){
+        *mLib = driverSO;
+    }
+    ALOGD("Load RS driver \'%s\' successfully.", filename);
 
     return true;
 }
@@ -312,10 +315,24 @@ void * Context::threadProc(void *vrsc) {
     rsc->props.mLogVisual = getProp("debug.rs.visual") != 0;
     rsc->props.mDebugMaxThreads = getProp("debug.rs.max-threads");
 
-    if (getProp("debug.rs.debug") != 0) {
-        ALOGD("Forcing debug context due to debug.rs.debug.");
-        rsc->mContextType = RS_CONTEXT_TYPE_DEBUG;
+    rsc->props.mEnableCpuDriver = getProp("debug.rs.default-CPU-driver") != 0;
+    rsc->props.mEnableGpuRs = getProp("rs.gpu.renderscript") != 0;
+    rsc->props.mEnableGpuFs = getProp("rs.gpu.filterscript") != 0;
+    rsc->props.mEnableGpuRsIntrinsic = getProp("rs.gpu.rsIntrinsic") != 0;
+
+    // TODO: Keep the obsolete properties temporarily for baytrail only.
+#if !defined(RS_SERVER) && defined(HAVE_ANDROID_OS)
+    char gpgpu_property[PROPERTY_VALUE_MAX];
+    if (property_get("debug.rs.gpu.renderscript", gpgpu_property, NULL) > 0) {
+        rsc->props.mEnableGpuRs = atoi(gpgpu_property);
     }
+    if (property_get("debug.rs.gpu.filterscript", gpgpu_property, NULL) > 0) {
+        rsc->props.mEnableGpuFs = atoi(gpgpu_property);
+    }
+    if (property_get("debug.rs.gpu.rsIntrinsic", gpgpu_property, NULL) > 0) {
+        rsc->props.mEnableGpuRsIntrinsic = atoi(gpgpu_property);
+    }
+#endif
 
     bool loadDefault = true;
 
@@ -326,23 +343,20 @@ void * Context::threadProc(void *vrsc) {
 #define STR(S) XSTR(S)
 #define OVERRIDE_RS_DRIVER_STRING STR(OVERRIDE_RS_DRIVER)
 
-    if (getProp("debug.rs.default-CPU-driver") != 0) {
-        ALOGD("Skipping override driver and loading default CPU driver");
-    } else if (rsc->mForceCpu || rsc->mIsGraphicsContext) {
+    if ((rsc->props.mEnableCpuDriver) || !(rsc->props.mEnableGpuRs ||
+        rsc->props.mEnableGpuFs || rsc->props.mEnableGpuRsIntrinsic)) {
+        ALOGE("Skipping override driver \'%s\' and loading default CPU driver \'libRSDriver.so\'.",
+                 OVERRIDE_RS_DRIVER_STRING);
+    } else if (rsc->mForceCpu) {
         ALOGV("Application requested CPU execution");
     } else if (rsc->getContextType() == RS_CONTEXT_TYPE_DEBUG) {
         ALOGV("Application requested debug context");
     } else {
-#if defined(__LP64__) && defined(DISABLE_RS_64_BIT_DRIVER)
-        // skip load
-#else
-        if (loadRuntime(OVERRIDE_RS_DRIVER_STRING, rsc)) {
-            ALOGV("Successfully loaded runtime: %s", OVERRIDE_RS_DRIVER_STRING);
+        if (loadRuntime(OVERRIDE_RS_DRIVER_STRING, rsc, &rsc->mLib)) {
             loadDefault = false;
         } else {
             ALOGE("Failed to load runtime %s, loading default", OVERRIDE_RS_DRIVER_STRING);
         }
-#endif
     }
 
 #undef XSTR
@@ -350,8 +364,7 @@ void * Context::threadProc(void *vrsc) {
 #endif  // OVERRIDE_RS_DRIVER
 
     if (loadDefault) {
-        if (!loadRuntime("libRSDriver.so", rsc)) {
-            ALOGE("Failed to load default runtime!");
+        if (!loadRuntime("libRSDriver.so", rsc, NULL)) {
             rsc->setError(RS_ERROR_FATAL_DRIVER, "Failed loading RS driver");
             return NULL;
         }
@@ -521,6 +534,7 @@ Context::Context() {
     mTargetSdkVersion = 14;
     mDPI = 96;
     mIsContextLite = false;
+    mLib = NULL;
     memset(&watchdog, 0, sizeof(watchdog));
     memset(&mHal, 0, sizeof(mHal));
     mForceCpu = false;
@@ -539,7 +553,6 @@ Context * Context::createContext(Device *dev, const RsSurfaceConfig *sc,
         rsc->mSynchronous = true;
     }
     rsc->mContextType = ct;
-    rsc->mHal.flags = flags;
 
     if (!rsc->initContext(dev, sc)) {
         delete rsc;
@@ -594,6 +607,7 @@ bool Context::initContext(Device *dev, const RsSurfaceConfig *sc) {
             ALOGE("Errors during thread init (sync mode)");
             return false;
         }
+
     } else {
         status = pthread_create(&mThreadId, &threadAttr, threadProc, this);
         if (status) {
@@ -622,9 +636,7 @@ Context::~Context() {
         void *res;
 
         mIO.shutdown();
-        if (!mSynchronous) {
-            pthread_join(mThreadId, &res);
-        }
+        int status = pthread_join(mThreadId, &res);
         rsAssert(mExit);
 
         if (mHal.funcs.shutdownDriver && mHal.drv) {
@@ -633,6 +645,12 @@ Context::~Context() {
 
         // Global structure cleanup.
         pthread_mutex_lock(&gInitMutex);
+
+        if (mLib) {
+            dlclose(mLib);
+            mLib = NULL;
+        }
+
         if (mDev) {
             mDev->removeContext(this);
             mDev = NULL;
@@ -898,7 +916,7 @@ void rsi_ContextDestroyWorker(Context *rsc) {
 }
 
 void rsi_ContextDestroy(Context *rsc) {
-    //ALOGE("%p rsContextDestroy", rsc);
+    //ALOGV("%p rsContextDestroy", rsc);
     rsContextDestroyWorker(rsc);
     delete rsc;
     //ALOGV("%p rsContextDestroy done", rsc);

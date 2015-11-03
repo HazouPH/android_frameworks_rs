@@ -1,4 +1,5 @@
 #include "rs_core.rsh"
+#include "rs_graphics.rsh"
 #include "rs_structs.h"
 
 /**

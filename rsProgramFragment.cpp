@@ -17,14 +17,13 @@
 #include "rsContext.h"
 #include "rsProgramFragment.h"
 
-#include <inttypes.h>
-
 using namespace android;
 using namespace android::renderscript;
 
 ProgramFragment::ProgramFragment(Context *rsc, const char * shaderText, size_t shaderLength,
                                  const char** textureNames, size_t textureNamesCount, const size_t *textureNamesLength,
-                                 const uintptr_t * params, size_t paramLength)
+
+                                 const uint32_t * params, size_t paramLength)
     : Program(rsc, shaderText, shaderLength, params, paramLength) {
     mConstantColor[0] = 1.f;
     mConstantColor[1] = 1.f;
@@ -68,7 +67,7 @@ void ProgramFragment::setup(Context *rsc, ProgramFragmentState *state) {
 
     for (uint32_t ct=0; ct < mHal.state.texturesCount; ct++) {
         if (!mHal.state.textures[ct]) {
-            ALOGE("No texture bound for shader id %" PRIuPTR ", texture unit %u", (uintptr_t)this, ct);
+            ALOGE("No texture bound for shader id %u, texture unit %u", (uint)this, ct);
             rsc->setError(RS_ERROR_BAD_SHADER, "No texture bound");
             continue;
         }
@@ -111,9 +110,9 @@ void ProgramFragmentState::init(Context *rsc) {
 
     ObjectBaseRef<Type> inputType = Type::getTypeRef(rsc, constInput.get(), 1, 0, 0, false, false, 0);
 
-    uintptr_t tmp[2];
+    uint32_t tmp[2];
     tmp[0] = RS_PROGRAM_PARAM_CONSTANT;
-    tmp[1] = (uintptr_t)inputType.get();
+    tmp[1] = (uint32_t)inputType.get();
 
     Allocation *constAlloc = Allocation::createAllocation(rsc, inputType.get(),
                               RS_ALLOCATION_USAGE_SCRIPT | RS_ALLOCATION_USAGE_GRAPHICS_CONSTANTS);
@@ -138,7 +137,7 @@ RsProgramFragment rsi_ProgramFragmentCreate(Context *rsc, const char * shaderTex
                                             const char** textureNames,
                                             size_t textureNamesCount,
                                             const size_t *textureNamesLength,
-                                            const uintptr_t * params, size_t paramLength) {
+                                            const uint32_t * params, size_t paramLength) {
     ProgramFragment *pf = new ProgramFragment(rsc, shaderText, shaderLength,
                                               textureNames, textureNamesCount, textureNamesLength,
                                               params, paramLength);

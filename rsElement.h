@@ -57,8 +57,6 @@ public:
     };
     Hal mHal;
 
-    void operator delete(void* ptr);
-
     uint32_t getGLType() const;
     uint32_t getGLFormat() const;
 
@@ -132,7 +130,6 @@ public:
 
     void incRefs(const void *) const;
     void decRefs(const void *) const;
-    virtual void callUpdateCacheObject(const Context *rsc, void *dstObj) const;
     bool getHasReferences() const {return mHasReference;}
 
 protected:

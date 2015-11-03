@@ -169,26 +169,8 @@ void Allocation::ioGetInput() {
 #endif
 }
 
-void * Allocation::getPointer(size_t *stride) {
-    void *p = NULL;
-    if (!(mUsage & RS_ALLOCATION_USAGE_SHARED)) {
-        mRS->throwError(RS_ERROR_INVALID_PARAMETER, "Allocation does not support USAGE_SHARED.");
-        return NULL;
-    }
-
-    // FIXME: decide if lack of getPointer should cause compat mode
-    if (RS::dispatch->AllocationGetPointer == NULL) {
-        mRS->throwError(RS_ERROR_RUNTIME_ERROR, "Can't use getPointer on older APIs");
-        return NULL;
-    }
-
-    p = RS::dispatch->AllocationGetPointer(mRS->getContext(), getIDSafe(), 0,
-                                           RS_ALLOCATION_CUBEMAP_FACE_POSITIVE_X, 0, 0, stride);
-    if (mRS->getError() != RS_SUCCESS) {
-        mRS->throwError(RS_ERROR_RUNTIME_ERROR, "Allocation lock failed");
-        p = NULL;
-    }
-    return p;
+void Allocation::generateMipmaps() {
+    tryDispatch(mRS, RS::dispatch->AllocationGenerateMipmaps(mRS->getContext(), getID()));
 }
 
 void Allocation::copy1DRangeFrom(uint32_t off, size_t count, const void *data) {
@@ -198,7 +180,7 @@ void Allocation::copy1DRangeFrom(uint32_t off, size_t count, const void *data) {
         return;
     }
     if((off + count) > mCurrentCount) {
-        ALOGE("Overflow, Available count %u, got %zu at offset %u.", mCurrentCount, count, off);
+        ALOGE("Overflow, Available count %zu, got %zu at offset %zu.", mCurrentCount, count, off);
         mRS->throwError(RS_ERROR_INVALID_PARAMETER, "Invalid copy specified");
         return;
     }
@@ -213,7 +195,7 @@ void Allocation::copy1DRangeTo(uint32_t off, size_t count, void *data) {
         return;
     }
     if((off + count) > mCurrentCount) {
-        ALOGE("Overflow, Available count %u, got %zu at offset %u.", mCurrentCount, count, off);
+        ALOGE("Overflow, Available count %zu, got %zu at offset %zu.", mCurrentCount, count, off);
         mRS->throwError(RS_ERROR_INVALID_PARAMETER, "Invalid copy specified");
         return;
     }
@@ -331,10 +313,10 @@ void Allocation::copy3DRangeFrom(uint32_t xoff, uint32_t yoff, uint32_t zoff, ui
 
 
 sp<Allocation> Allocation::createTyped(sp<RS> rs, sp<const Type> type,
-                                    RsAllocationMipmapControl mipmaps, uint32_t usage) {
+                                    RsAllocationMipmapControl mips, uint32_t usage) {
     void *id = 0;
     if (rs->getError() == RS_SUCCESS) {
-        id = RS::dispatch->AllocationCreateTyped(rs->getContext(), type->getID(), mipmaps, usage, 0);
+        id = RS::dispatch->AllocationCreateTyped(rs->getContext(), type->getID(), mips, usage, 0);
     }
     if (id == 0) {
         rs->throwError(RS_ERROR_RUNTIME_ERROR, "Allocation creation failed");
@@ -344,11 +326,11 @@ sp<Allocation> Allocation::createTyped(sp<RS> rs, sp<const Type> type,
 }
 
 sp<Allocation> Allocation::createTyped(sp<RS> rs, sp<const Type> type,
-                                    RsAllocationMipmapControl mipmaps, uint32_t usage,
+                                    RsAllocationMipmapControl mips, uint32_t usage,
                                     void *pointer) {
     void *id = 0;
     if (rs->getError() == RS_SUCCESS) {
-        id = RS::dispatch->AllocationCreateTyped(rs->getContext(), type->getID(), mipmaps, usage,
+        id = RS::dispatch->AllocationCreateTyped(rs->getContext(), type->getID(), mips, usage,
                                                  (uintptr_t)pointer);
     }
     if (id == 0) {

@@ -26,7 +26,7 @@ int gHeight;
 int gStep;
 int gSteps;
 
-void RS_KERNEL pass1(int in, uint x, uint y) {
+void __attribute__((kernel)) pass1(int in, uint x, uint y) {
     for (int i=0; i < (256); i++) {
         rsSetElementAt_int(gSums, 0, i, y);
     }
@@ -45,7 +45,7 @@ void RS_KERNEL pass1(int in, uint x, uint y) {
     }
 }
 
-int RS_KERNEL pass2(uint x) {
+int __attribute__((kernel)) pass2(uint x) {
     int sum = 0;
     for (int i=0; i < gSteps; i++) {
         sum += rsGetElementAt_int(gSums, x, i);
@@ -71,11 +71,11 @@ void rescale() {
 
 static const uchar4 gClear = {0, 0, 0, 0xff};
 
-uchar4 RS_KERNEL clear() {
+uchar4 __attribute__((kernel)) clear() {
     return gClear;
 }
 
-uchar4 RS_KERNEL draw(uint x, uint y) {
+uchar4 __attribute__((kernel)) draw(uint x, uint y) {
     int l = rsGetElementAt_int(gSum, x >> 2);
     if (y > l) {
         return 0xff;

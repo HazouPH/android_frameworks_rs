@@ -72,11 +72,7 @@ typedef int int32_t;
 /**
  * 64 bit integer type
  */
-#if (defined(RS_VERSION) && (RS_VERSION >= 21))
-    typedef long int64_t;
-#else
-    typedef long long int64_t;
-#endif
+typedef long long int64_t;
 /**
  * 8 bit unsigned integer type
  */
@@ -92,11 +88,7 @@ typedef unsigned int uint32_t;
 /**
  * 64 bit unsigned integer type
  */
-#if (defined(RS_VERSION) && (RS_VERSION >= 21))
-    typedef unsigned long uint64_t;
-#else
-    typedef unsigned long long uint64_t;
-#endif
+typedef unsigned long long uint64_t;
 /**
  * 8 bit unsigned integer type
  */
@@ -114,54 +106,44 @@ typedef uint32_t uint;
  */
 typedef uint64_t ulong;
 /**
- * Typedef for size_t
+ * Typedef for unsigned int
  */
-#ifndef __LP64__
 typedef uint32_t size_t;
+/**
+ * Typedef for int (use for 32-bit integers)
+ */
 typedef int32_t ssize_t;
-#else
-typedef uint64_t size_t;
-typedef int64_t ssize_t;
-#endif
-
-#ifndef __LP64__
-#define RS_BASE_OBJ typedef struct { const int* const p; } __attribute__((packed, aligned(4)))
-#else
-#define RS_BASE_OBJ typedef struct { const long* const p; const long* const r; const long* const v1; const long* const v2; }
-#endif
 
 /**
  * \brief Opaque handle to a RenderScript element.
  *
  * See: android.renderscript.Element
  */
-RS_BASE_OBJ rs_element;
+typedef struct { const int* const p; } __attribute__((packed, aligned(4))) rs_element;
 /**
  * \brief Opaque handle to a RenderScript type.
  *
  * See: android.renderscript.Type
  */
-RS_BASE_OBJ rs_type;
+typedef struct { const int* const p; } __attribute__((packed, aligned(4))) rs_type;
 /**
  * \brief Opaque handle to a RenderScript allocation.
  *
  * See: android.renderscript.Allocation
  */
-RS_BASE_OBJ rs_allocation;
+typedef struct { const int* const p; } __attribute__((packed, aligned(4))) rs_allocation;
 /**
  * \brief Opaque handle to a RenderScript sampler object.
  *
  * See: android.renderscript.Sampler
  */
-RS_BASE_OBJ rs_sampler;
+typedef struct { const int* const p; } __attribute__((packed, aligned(4))) rs_sampler;
 /**
  * \brief Opaque handle to a RenderScript script object.
  *
  * See: android.renderscript.ScriptC
  */
-RS_BASE_OBJ rs_script;
-
-#ifndef __LP64__
+typedef struct { const int* const p; } __attribute__((packed, aligned(4))) rs_script;
 /**
  * \brief Opaque handle to a RenderScript mesh object.
  *
@@ -204,7 +186,6 @@ typedef struct { const int* const p; } __attribute__((packed, aligned(4))) rs_pr
  * See: android.renderscript.Font
  */
 typedef struct { const int* const p; } __attribute__((packed, aligned(4))) rs_font;
-#endif // __LP64__
 
 /**
  * Vector version of the basic float type.
@@ -437,7 +418,6 @@ typedef enum {
 // New API's
 #if (defined(RS_VERSION) && (RS_VERSION >= 16))
 
-#ifndef __LP64__
 /**
  * Describes the way mesh vertex data is interpreted when rendering
  *
@@ -476,7 +456,6 @@ typedef enum {
     */
     RS_PRIMITIVE_INVALID            = 100,
 } rs_primitive;
-#endif // __LP64__
 
 /**
  * \brief Enumeration for possible element data types
@@ -556,7 +535,6 @@ typedef enum {
     RS_KIND_INVALID      = 100,
 } rs_data_kind;
 
-#ifndef __LP64__
 typedef enum {
     /**
     * Always drawn
@@ -632,7 +610,6 @@ typedef enum {
 
     RS_CULL_INVALID  = 100,
 } rs_cull_mode;
-#endif //__LP64__
 
 typedef enum {
     RS_SAMPLER_NEAREST              = 0,

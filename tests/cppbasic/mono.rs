@@ -42,12 +42,6 @@ struct myStruct {
     char c[3];
 };
 
-rs_allocation alloc;
-rs_element elem;
-rs_type type;
-rs_sampler sampler;
-rs_script script;
-
 void root(const uchar4 *v_in, uchar4 *v_out) {
     float4 f4 = rsUnpackColor8888(*v_in);
 
@@ -71,11 +65,11 @@ void bar(int i, int j, char k, int l, int m, int n) {
     _RS_ASSERT(n == -8);
 }
 
-int RS_KERNEL kern1(int i, uint32_t x, uint32_t y) {
+int __attribute__((kernel)) kern1(int i, uint32_t x, uint32_t y) {
     return i + 10 * x + 100 *y;
 }
 
-void RS_KERNEL verify_kern1(int i, uint32_t x, uint32_t y) {
+void __attribute__((kernel)) verify_kern1(int i, uint32_t x, uint32_t y) {
     _RS_ASSERT(i == (5 + 10 * x + 100 * y));
     rsDebug("i ", i);
 }

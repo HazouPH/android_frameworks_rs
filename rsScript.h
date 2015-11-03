@@ -78,6 +78,8 @@ public:
             int (* root)();
         };
         DriverInfo info;
+
+        void * IMGPrivateData;
     };
     Hal mHal;
 
@@ -103,7 +105,7 @@ public:
     void setVar(uint32_t slot, const void *val, size_t len);
     void getVar(uint32_t slot, const void *val, size_t len);
     void setVar(uint32_t slot, const void *val, size_t len, Element *e,
-                const uint32_t *dims, size_t dimLen);
+                const size_t *dims, size_t dimLen);
     void setVarObj(uint32_t slot, ObjectBase *val);
 
     virtual bool freeChildren();
@@ -116,15 +118,6 @@ public:
                             size_t usrBytes,
                             const RsScriptCall *sc = NULL) = 0;
 
-    virtual void runForEach(Context* rsc,
-                            uint32_t slot,
-                            const Allocation** ains,
-                            size_t inLen,
-                            Allocation* aout,
-                            const void* usr,
-                            size_t usrBytes,
-                            const RsScriptCall *sc = NULL) = 0;
-
     virtual void Invoke(Context *rsc, uint32_t slot, const void *data, size_t len) = 0;
     virtual void setupScript(Context *rsc) = 0;
     virtual uint32_t run(Context *) = 0;
@@ -132,8 +125,6 @@ public:
     bool hasObjectSlots() const {
         return mHasObjectSlots;
     }
-    virtual void callUpdateCacheObject(const Context *rsc, void *dstObj) const;
-
 protected:
     bool mInitialized;
     bool mHasObjectSlots;
@@ -146,3 +137,4 @@ protected:
 }
 }
 #endif
+

@@ -25,12 +25,12 @@ namespace android {
 namespace renderscript {
 
 struct Matrix4x4 : public rs_matrix4x4 {
-    float get(uint32_t col, uint32_t row) const {
-        return m[col*4 + row];
+    float get(uint32_t x, uint32_t y) const {
+        return m[x*4 + y];
     }
 
-    void set(uint32_t col, uint32_t row, float v) {
-        m[col*4 + row] = v;
+    void set(uint32_t x, uint32_t y, float v) {
+        m[x*4 + y] = v;
     }
 
     void loadIdentity();
@@ -48,7 +48,6 @@ struct Matrix4x4 : public rs_matrix4x4 {
     void loadFrustum(float l, float r, float b, float t, float n, float f);
     void loadPerspective(float fovy, float aspect, float near, float far);
 
-    // Note: This assumes that the input vector (in) is of length 3.
     void vectorMultiply(float *v4out, const float *v3in) const;
 
     bool inverse();
@@ -59,7 +58,9 @@ struct Matrix4x4 : public rs_matrix4x4 {
 
 
     void multiply(const rs_matrix4x4 *rhs) {
-        loadMultiply(this, rhs);
+        Matrix4x4 tmp;
+        tmp.loadMultiply(this, rhs);
+        load(&tmp);
     }
     void rotate(float rot, float x, float y, float z) {
         Matrix4x4 tmp;

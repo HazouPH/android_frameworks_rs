@@ -44,27 +44,15 @@ public:
   ELFSectionProgBits(int machine) {
     switch(machine) {
     case EM_ARM:
-      stubs = new StubLayoutARM();
-      break;
-
-    case EM_AARCH64:
-      stubs = new StubLayoutAARCH64();
+        stubs = new StubLayoutARM();
       break;
 
     case EM_MIPS:
-      stubs = new StubLayoutMIPS();
-      break;
-
-    case EM_386:
-      stubs = new StubLayoutX86();
-      break;
-
-    case EM_X86_64:
-      stubs = new StubLayoutX86_64();
+        stubs = new StubLayoutMIPS();
       break;
 
     default:
-      stubs = NULL;
+        stubs = NULL;
     }
   }
 

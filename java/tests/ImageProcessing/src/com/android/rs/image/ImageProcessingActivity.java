@@ -55,11 +55,64 @@ public class ImageProcessingActivity extends Activity
     Allocation mInPixelsAllocation2;
     Allocation mOutPixelsAllocation;
 
+    static class DVFSWorkaround {
+        static class spinner extends Thread {
+            boolean mRun = true;
+            long mNextSleep;
+
+            spinner() {
+                setPriority(MIN_PRIORITY);
+                start();
+            }
+
+            public void run() {
+                while (mRun) {
+                    Thread.yield();
+                    synchronized(this) {
+                        long t = java.lang.System.currentTimeMillis();
+                        if (t > mNextSleep) {
+                            try {
+                                this.wait();
+                            } catch(InterruptedException e) {
+                            }
+                        }
+                    }
+                }
+            }
+
+            public void go(long t) {
+                synchronized(this) {
+                    mNextSleep = t;
+                    notifyAll();
+                }
+            }
+        }
+
+        spinner s1;
+        DVFSWorkaround() {
+            s1 = new spinner();
+        }
+
+        void go() {
+            long t = java.lang.System.currentTimeMillis() + 2000;
+            s1.go(t);
+        }
+
+        void destroy() {
+            synchronized(this) {
+                s1.mRun = false;
+                notifyAll();
+            }
+        }
+    }
+    DVFSWorkaround mDvfsWar = new DVFSWorkaround();
+
 
     /**
      * Define enum type for test names
      */
     public enum TestName {
+        // totally there are 38 test cases
         LEVELS_VEC3_RELAXED ("Levels Vec3 Relaxed"),
         LEVELS_VEC4_RELAXED ("Levels Vec4 Relaxed"),
         LEVELS_VEC3_FULL ("Levels Vec3 Full"),
@@ -87,7 +140,7 @@ public class ImageProcessingActivity extends Activity
         CROSS_PROCESS_USING_LUT ("CrossProcess (using LUT)"),
         CONVOLVE_5X5 ("Convolve 5x5"),
         INTRINSICS_CONVOLVE_5X5 ("Intrinsics Convolve 5x5"),
-        MANDELBROT_FLOAT ("Mandelbrot fp32"),
+        MANDELBROT ("Mandelbrot"),
         INTRINSICS_BLEND ("Intrinsics Blend"),
         INTRINSICS_BLUR_25G ("Intrinsics Blur 25 uchar"),
         VIBRANCE ("Vibrance"),
@@ -100,10 +153,7 @@ public class ImageProcessingActivity extends Activity
         COLOR_CUBE_3D_INTRINSIC ("Color Cube (3D LUT intrinsic)"),
         USAGE_IO ("Usage io"),
         ARTISTIC_1("Artistic 1"),
-        HISTOGRAM ("Histogram"),
-        MANDELBROT_DOUBLE ("Mandelbrot fp64"),
-        RESIZE_BICUBIC_SCRIPT ("Resize BiCubic Script"),
-        RESIZE_BICUBIC_INTRINSIC ("Resize BiCubic Intrinsic");
+        HISTOGRAM ("Histogram");
 
 
         private final String name;
@@ -118,6 +168,8 @@ public class ImageProcessingActivity extends Activity
         }
     }
 
+    Bitmap mBitmapIn;
+    Bitmap mBitmapIn2;
     Bitmap mBitmapOut;
 
     private Spinner mSpinner;
@@ -132,9 +184,12 @@ public class ImageProcessingActivity extends Activity
     private TextView mText4;
     private TextView mText5;
 
+    private float mSaturation = 1.0f;
+
     private TextView mBenchmarkResult;
     private Spinner mTestSpinner;
 
+    private SurfaceView mSurfaceView;
     private ImageView mDisplayView;
 
     private boolean mDoingBenchmark;
@@ -323,8 +378,8 @@ public class ImageProcessingActivity extends Activity
         case INTRINSICS_CONVOLVE_5X5:
             mTest = new Convolve5x5(true);
             break;
-        case MANDELBROT_FLOAT:
-            mTest = new Mandelbrot(false);
+        case MANDELBROT:
+            mTest = new Mandelbrot();
             break;
         case INTRINSICS_BLEND:
             mTest = new Blend();
@@ -365,18 +420,9 @@ public class ImageProcessingActivity extends Activity
         case HISTOGRAM:
             mTest = new Histogram();
             break;
-        case MANDELBROT_DOUBLE:
-            mTest = new Mandelbrot(true);
-            break;
-        case RESIZE_BICUBIC_SCRIPT:
-            mTest = new Resize(false);
-            break;
-        case RESIZE_BICUBIC_INTRINSIC:
-            mTest = new Resize(true);
-            break;
         }
 
-        mTest.createBaseTest(this);
+        mTest.createBaseTest(this, mBitmapIn, mBitmapIn2, mBitmapOut);
         setupBars();
 
         mTest.runTest();
@@ -401,16 +447,12 @@ public class ImageProcessingActivity extends Activity
             };
 
     void init() {
-        mRS = RenderScript.create(this);
-        mInPixelsAllocation = Allocation.createFromBitmapResource(
-                mRS, getResources(), R.drawable.img1600x1067);
-        mInPixelsAllocation2 = Allocation.createFromBitmapResource(
-                mRS, getResources(), R.drawable.img1600x1067b);
-        mBitmapOut = Bitmap.createBitmap(mInPixelsAllocation.getType().getX(),
-                                         mInPixelsAllocation.getType().getY(),
-                                         Bitmap.Config.ARGB_8888);
-        mBitmapOut.setHasAlpha(false);
-        mOutPixelsAllocation = Allocation.createFromBitmap(mRS, mBitmapOut);
+        mBitmapIn = loadBitmap(R.drawable.img1600x1067);
+        mBitmapIn2 = loadBitmap(R.drawable.img1600x1067b);
+        mBitmapOut = Bitmap.createBitmap(mBitmapIn.getWidth(), mBitmapIn.getHeight(),
+                                         mBitmapIn.getConfig());
+
+        mSurfaceView = (SurfaceView) findViewById(R.id.surface);
 
         mDisplayView = (ImageView) findViewById(R.id.display);
         mDisplayView.setImageBitmap(mBitmapOut);
@@ -441,6 +483,21 @@ public class ImageProcessingActivity extends Activity
         mBenchmarkResult = (TextView) findViewById(R.id.benchmarkText);
         mBenchmarkResult.setText("Result: not run");
 
+
+        mRS = RenderScript.create(this);
+        mInPixelsAllocation = Allocation.createFromBitmap(mRS, mBitmapIn,
+                                                          Allocation.MipmapControl.MIPMAP_NONE,
+                                                          Allocation.USAGE_SHARED |
+                                                          Allocation.USAGE_GRAPHICS_TEXTURE |
+                                                          Allocation.USAGE_SCRIPT);
+        mInPixelsAllocation2 = Allocation.createFromBitmap(mRS, mBitmapIn2,
+                                                           Allocation.MipmapControl.MIPMAP_NONE,
+                                                           Allocation.USAGE_SHARED |
+                                                           Allocation.USAGE_GRAPHICS_TEXTURE |
+                                                           Allocation.USAGE_SCRIPT);
+        mOutPixelsAllocation = Allocation.createFromBitmap(mRS, mBitmapOut);
+
+
         setupTests();
         changeTest(TestName.LEVELS_VEC3_RELAXED);
     }
@@ -462,6 +519,8 @@ public class ImageProcessingActivity extends Activity
         mInPixelsAllocation = null;
         mInPixelsAllocation2 = null;
         mOutPixelsAllocation = null;
+        mBitmapIn = null;
+        mBitmapIn2 = null;
         mBitmapOut = null;
     }
 
@@ -485,9 +544,13 @@ public class ImageProcessingActivity extends Activity
     protected void onResume() {
         super.onResume();
 
-        if (null == mRS) {
-            init();
-        }
+        init();
+    }
+
+    private Bitmap loadBitmap(int resource) {
+        final BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inPreferredConfig = Bitmap.Config.ARGB_8888;
+        return BitmapFactory.decodeResource(getResources(), resource, options);
     }
 
     // button hook
@@ -534,6 +597,7 @@ public class ImageProcessingActivity extends Activity
         }
         mDoingBenchmark = true;
 
+        mDvfsWar.go();
         mTest.setupBenchmark();
         long result = 0;
 
@@ -558,7 +622,6 @@ public class ImageProcessingActivity extends Activity
 
         mTest.exitBenchmark();
         mDoingBenchmark = false;
-
         return ft;
     }
 }

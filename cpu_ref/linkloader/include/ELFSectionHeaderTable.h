@@ -19,6 +19,7 @@
 
 #include "ELFTypes.h"
 
+#include <llvm/ADT/OwningPtr.h>
 #include <llvm/ADT/StringMap.h>
 
 #include <vector>

@@ -32,7 +32,7 @@ ELFReloc_CRTP<Bitwidth>::readRela(Archiver &AR, size_t index) {
     return 0;
   }
 
-  std::unique_ptr<ELFRelocTy> sh(new ELFRelocTy());
+  llvm::OwningPtr<ELFRelocTy> sh(new ELFRelocTy());
 
   if (!sh->serializeRela(AR)) {
     // Unable to read the structure.  Return NULL.
@@ -47,7 +47,7 @@ ELFReloc_CRTP<Bitwidth>::readRela(Archiver &AR, size_t index) {
   // Set the section header index
   sh->index = index;
 
-  return sh.release();
+  return sh.take();
 }
 
 template <unsigned Bitwidth>
@@ -60,7 +60,7 @@ ELFReloc_CRTP<Bitwidth>::readRel(Archiver &AR, size_t index) {
     return 0;
   }
 
-  std::unique_ptr<ELFRelocTy> sh(new ELFRelocTy());
+  llvm::OwningPtr<ELFRelocTy> sh(new ELFRelocTy());
 
   sh->r_addend = 0;
   if (!sh->serializeRel(AR)) {
@@ -75,7 +75,7 @@ ELFReloc_CRTP<Bitwidth>::readRel(Archiver &AR, size_t index) {
   // Set the section header index
   sh->index = index;
 
-  return sh.release();
+  return sh.take();
 }
 
 template <unsigned Bitwidth>

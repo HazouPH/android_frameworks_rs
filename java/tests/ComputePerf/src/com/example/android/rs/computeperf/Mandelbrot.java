@@ -26,7 +26,7 @@ public class Mandelbrot implements Runnable {
 
     Mandelbrot(RenderScript rs, Resources res) {
         mRS = rs;
-        mScript = new ScriptC_mandelbrot(mRS);
+        mScript = new ScriptC_mandelbrot(mRS, res, R.raw.mandelbrot);
 
         Type.Builder tb = new Type.Builder(rs, Element.U8_4(rs));
         tb.setX(mScript.get_gDimX());

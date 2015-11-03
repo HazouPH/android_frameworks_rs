@@ -41,7 +41,7 @@ ELFSectionHeaderTable<Bitwidth>::read(Archiver &AR, ELFObjectTy *owner) {
   }
 
   // Allocate a new section header table and assign the owner.
-  std::unique_ptr<ELFSectionHeaderTable> tab(new ELFSectionHeaderTable());
+  llvm::OwningPtr<ELFSectionHeaderTable> tab(new ELFSectionHeaderTable());
 
   // Get ELF header
   ELFHeaderTy const *header = owner->getHeader();
@@ -53,7 +53,7 @@ ELFSectionHeaderTable<Bitwidth>::read(Archiver &AR, ELFObjectTy *owner) {
   AR.seek(header->getSectionHeaderTableOffset(), true);
 
   for (size_t i = 0; i < header->getSectionHeaderNum(); ++i) {
-    std::unique_ptr<ELFSectionHeaderTy> sh(
+    llvm::OwningPtr<ELFSectionHeaderTy> sh(
       ELFSectionHeaderTy::read(AR, owner, i));
 
     if (!sh) {
@@ -61,10 +61,10 @@ ELFSectionHeaderTable<Bitwidth>::read(Archiver &AR, ELFObjectTy *owner) {
       return 0;
     }
 
-    tab->table.push_back(sh.release());
+    tab->table.push_back(sh.take());
   }
 
-  return tab.release();
+  return tab.take();
 }
 
 template <unsigned Bitwidth>

@@ -141,19 +141,23 @@ void CpuScriptGroupImpl::execute() {
             bool inExt = false;
             bool outExt = false;
 
+            if (k->mScript->hasObjectSlots()) {
+                // Disable the ScriptGroup optimization if we have global RS
+                // objects that might interfere between kernels.
+                fieldDep = true;
+            }
+
             for (size_t ct3=0; ct3 < n->mInputs.size(); ct3++) {
                 if (n->mInputs[ct3]->mDstKernel.get() == k) {
                     ain = n->mInputs[ct3]->mAlloc.get();
-                    break;
+                    //ALOGE(" link in %p", ain);
                 }
             }
-            if (ain == NULL) {
-                for (size_t ct3=0; ct3 < mSG->mInputs.size(); ct3++) {
-                    if (mSG->mInputs[ct3]->mKernel == k) {
-                        ain = mSG->mInputs[ct3]->mAlloc.get();
-                        inExt = true;
-                        break;
-                    }
+            for (size_t ct3=0; ct3 < mSG->mInputs.size(); ct3++) {
+                if (mSG->mInputs[ct3]->mKernel == k) {
+                    ain = mSG->mInputs[ct3]->mAlloc.get();
+                    inExt = true;
+                    //ALOGE(" io in %p", ain);
                 }
             }
 
@@ -163,27 +167,25 @@ void CpuScriptGroupImpl::execute() {
                     if(n->mOutputs[ct3]->mDstField.get() != NULL) {
                         fieldDep = true;
                     }
-                    break;
+                    //ALOGE(" link out %p", aout);
                 }
             }
-            if (aout == NULL) {
-                for (size_t ct3=0; ct3 < mSG->mOutputs.size(); ct3++) {
-                    if (mSG->mOutputs[ct3]->mKernel == k) {
-                        aout = mSG->mOutputs[ct3]->mAlloc.get();
-                        outExt = true;
-                        break;
-                    }
+            for (size_t ct3=0; ct3 < mSG->mOutputs.size(); ct3++) {
+                if (mSG->mOutputs[ct3]->mKernel == k) {
+                    aout = mSG->mOutputs[ct3]->mAlloc.get();
+                    outExt = true;
+                    //ALOGE(" io out %p", aout);
                 }
             }
 
-            rsAssert((k->mHasKernelOutput == (aout != NULL)) &&
-                     (k->mHasKernelInput == (ain != NULL)));
-
-            ins.add(ain);
-            inExts.add(inExt);
-            outs.add(aout);
-            outExts.add(outExt);
-            kernels.add(k);
+            if ((k->mHasKernelOutput == (aout != NULL)) &&
+                (k->mHasKernelInput == (ain != NULL))) {
+                ins.add(ain);
+                inExts.add(inExt);
+                outs.add(aout);
+                outExts.add(outExt);
+                kernels.add(k);
+            }
         }
 
     }

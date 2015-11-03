@@ -22,7 +22,8 @@
 
 #include "utils/rsl_assert.h"
 
-#include <memory>
+#include <llvm/ADT/OwningPtr.h>
+
 #include <string>
 #include <vector>
 
@@ -32,8 +33,8 @@ public:
   ELF_TYPE_INTRO_TO_TEMPLATE_SCOPE(Bitwidth);
 
 private:
-  std::unique_ptr<ELFHeaderTy> header;
-  std::unique_ptr<ELFSectionHeaderTableTy> shtab;
+  llvm::OwningPtr<ELFHeaderTy> header;
+  llvm::OwningPtr<ELFSectionHeaderTableTy> shtab;
   std::vector<ELFSectionTy *> stab;
 
   MemChunk SHNCommonData;
@@ -118,11 +119,6 @@ public:
 
 private:
   void relocateARM(void *(*find_sym)(void *context, char const *name),
-                   void *context,
-                   ELFSectionRelTableTy *reltab,
-                   ELFSectionProgBitsTy *text);
-
-  void relocateAARCH64(void *(*find_sym)(void *context, char const *name),
                    void *context,
                    ELFSectionRelTableTy *reltab,
                    ELFSectionProgBitsTy *text);

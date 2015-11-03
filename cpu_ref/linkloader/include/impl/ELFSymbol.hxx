@@ -51,7 +51,7 @@ ELFSymbol_CRTP<Bitwidth>::read(Archiver &AR,
     return 0;
   }
 
-  std::unique_ptr<ELFSymbolTy> sh(new ELFSymbolTy());
+  llvm::OwningPtr<ELFSymbolTy> sh(new ELFSymbolTy());
 
   if (!sh->serialize(AR)) {
     // Unable to read the structure.  Return NULL.
@@ -69,7 +69,7 @@ ELFSymbol_CRTP<Bitwidth>::read(Archiver &AR,
   // Set the owner elf object
   sh->owner = owner;
 
-  return sh.release();
+  return sh.take();
 }
 
 template <unsigned Bitwidth>

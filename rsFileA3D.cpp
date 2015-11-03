@@ -26,8 +26,6 @@
     #include <androidfw/Asset.h>
 #endif
 
-#include <inttypes.h>
-
 using namespace android;
 using namespace android::renderscript;
 
@@ -194,7 +192,7 @@ bool FileA3D::load(FILE *f) {
         return false;
     }
 
-    ALOGV("file open size = %" PRIi64, mDataSize);
+    ALOGV("file open size = %lli", mDataSize);
 
     // We should know enough to read the file in at this point.
     mAlloc = malloc(mDataSize);

@@ -28,7 +28,7 @@ template <unsigned Bitwidth>
 template <typename Archiver>
 inline ELFSectionNoBits<Bitwidth> *
 ELFSectionNoBits<Bitwidth>::read(Archiver &AR, ELFSectionHeaderTy const *sh) {
-  std::unique_ptr<ELFSectionNoBits> result(new ELFSectionNoBits());
+  llvm::OwningPtr<ELFSectionNoBits> result(new ELFSectionNoBits());
 
   if (!result->chunk.allocate(sh->getSize())) {
     return NULL;
@@ -36,7 +36,7 @@ ELFSectionNoBits<Bitwidth>::read(Archiver &AR, ELFSectionHeaderTy const *sh) {
 
   result->sh = sh;
 
-  return result.release();
+  return result.take();
 }
 
 #endif // ELF_SECTION_NOBITS_HXX

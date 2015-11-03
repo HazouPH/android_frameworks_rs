@@ -24,6 +24,7 @@ import android.renderscript.Matrix4f;
 import android.renderscript.RenderScript;
 import android.renderscript.Script;
 import android.renderscript.ScriptC;
+import android.renderscript.ScriptGroup;
 import android.renderscript.ScriptIntrinsicConvolve5x5;
 import android.renderscript.Type;
 import android.util.Log;
@@ -68,7 +69,7 @@ public class Convolve5x5 extends TestBase {
             mIntrinsic.setCoefficients(f);
             mIntrinsic.setInput(mInPixelsAllocation);
         } else {
-            mScript = new ScriptC_convolve5x5(mRS);
+            mScript = new ScriptC_convolve5x5(mRS, res, R.raw.convolve5x5);
             mScript.set_gCoeffs(f);
             mScript.set_gIn(mInPixelsAllocation);
             mScript.set_gWidth(mWidth);

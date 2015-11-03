@@ -60,7 +60,7 @@ public class RSTestCore {
         mHeight = height;
         stopTesting = false;
 
-        mScript = new ScriptC_rslist(mRS);
+        mScript = new ScriptC_rslist(mRS, mRes, R.raw.rslist);
 
         unitTests = new ArrayList<UnitTest>();
 

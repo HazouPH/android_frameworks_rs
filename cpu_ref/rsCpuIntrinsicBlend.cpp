@@ -90,12 +90,6 @@ enum {
     BLEND_LUMINOSITY = 43
 };
 
-#if defined(ARCH_ARM_USE_INTRINSICS)
-extern "C" int rsdIntrinsicBlend_K(uchar4 *out, uchar4 const *in, int slot,
-                    uint32_t xstart, uint32_t xend);
-#endif
-
-#if defined(ARCH_X86_HAVE_SSSE3)
 extern "C" void rsdIntrinsicBlendSrcOver_K(void *dst, const void *src, uint32_t count8);
 extern "C" void rsdIntrinsicBlendDstOver_K(void *dst, const void *src, uint32_t count8);
 extern "C" void rsdIntrinsicBlendSrcIn_K(void *dst, const void *src, uint32_t count8);
@@ -108,7 +102,6 @@ extern "C" void rsdIntrinsicBlendXor_K(void *dst, const void *src, uint32_t coun
 extern "C" void rsdIntrinsicBlendMultiply_K(void *dst, const void *src, uint32_t count8);
 extern "C" void rsdIntrinsicBlendAdd_K(void *dst, const void *src, uint32_t count8);
 extern "C" void rsdIntrinsicBlendSub_K(void *dst, const void *src, uint32_t count8);
-#endif
 
 void RsdCpuScriptIntrinsicBlend::kernel(const RsForEachStubParamStruct *p,
                                         uint32_t xstart, uint32_t xend,
@@ -121,12 +114,6 @@ void RsdCpuScriptIntrinsicBlend::kernel(const RsForEachStubParamStruct *p,
     uint32_t x1 = xstart;
     uint32_t x2 = xend;
 
-#if defined(ARCH_ARM_USE_INTRINSICS) && !defined(ARCH_ARM64_USE_INTRINSICS)
-    if (gArchUseSIMD) {
-        if (rsdIntrinsicBlend_K(out, in, p->slot, x1, x2) >= 0)
-            return;
-    }
-#endif
     switch (p->slot) {
     case BLEND_CLEAR:
         for (;x1 < x2; x1++, out++) {
@@ -142,9 +129,9 @@ void RsdCpuScriptIntrinsicBlend::kernel(const RsForEachStubParamStruct *p,
     case BLEND_DST:
         break;
     case BLEND_SRC_OVER:
-    #if defined(ARCH_X86_HAVE_SSSE3)
+#if defined(ARCH_ARM_HAVE_VFP) || defined(ARCH_X86_HAVE_SSSE3)
         if (gArchUseSIMD) {
-            if ((x1 + 8) < x2) {
+            if((x1 + 8) < x2) {
                 uint32_t len = (x2 - x1) >> 3;
                 rsdIntrinsicBlendSrcOver_K(out, in, len);
                 x1 += len << 3;
@@ -152,7 +139,7 @@ void RsdCpuScriptIntrinsicBlend::kernel(const RsForEachStubParamStruct *p,
                 in += len << 3;
             }
         }
-    #endif
+#endif
         for (;x1 < x2; x1++, out++, in++) {
             short4 in_s = convert_short4(*in);
             short4 out_s = convert_short4(*out);
@@ -161,9 +148,9 @@ void RsdCpuScriptIntrinsicBlend::kernel(const RsForEachStubParamStruct *p,
         }
         break;
     case BLEND_DST_OVER:
-    #if defined(ARCH_X86_HAVE_SSSE3)
+#if defined(ARCH_ARM_HAVE_VFP) || defined(ARCH_X86_HAVE_SSSE3)
         if (gArchUseSIMD) {
-            if ((x1 + 8) < x2) {
+            if((x1 + 8) < x2) {
                 uint32_t len = (x2 - x1) >> 3;
                 rsdIntrinsicBlendDstOver_K(out, in, len);
                 x1 += len << 3;
@@ -171,7 +158,7 @@ void RsdCpuScriptIntrinsicBlend::kernel(const RsForEachStubParamStruct *p,
                 in += len << 3;
             }
         }
-     #endif
+#endif
         for (;x1 < x2; x1++, out++, in++) {
             short4 in_s = convert_short4(*in);
             short4 out_s = convert_short4(*out);
@@ -180,9 +167,9 @@ void RsdCpuScriptIntrinsicBlend::kernel(const RsForEachStubParamStruct *p,
         }
         break;
     case BLEND_SRC_IN:
-    #if defined(ARCH_X86_HAVE_SSSE3)
+#if defined(ARCH_ARM_HAVE_VFP) || defined(ARCH_X86_HAVE_SSSE3)
         if (gArchUseSIMD) {
-            if ((x1 + 8) < x2) {
+            if((x1 + 8) < x2) {
                 uint32_t len = (x2 - x1) >> 3;
                 rsdIntrinsicBlendSrcIn_K(out, in, len);
                 x1 += len << 3;
@@ -190,7 +177,7 @@ void RsdCpuScriptIntrinsicBlend::kernel(const RsForEachStubParamStruct *p,
                 in += len << 3;
             }
         }
-    #endif
+#endif
         for (;x1 < x2; x1++, out++, in++) {
             short4 in_s = convert_short4(*in);
             in_s = (in_s * out->w) >> (short4)8;
@@ -198,9 +185,9 @@ void RsdCpuScriptIntrinsicBlend::kernel(const RsForEachStubParamStruct *p,
         }
         break;
     case BLEND_DST_IN:
-    #if defined(ARCH_X86_HAVE_SSSE3)
+#if defined(ARCH_ARM_HAVE_VFP) || defined(ARCH_X86_HAVE_SSSE3)
         if (gArchUseSIMD) {
-            if ((x1 + 8) < x2) {
+            if((x1 + 8) < x2) {
                 uint32_t len = (x2 - x1) >> 3;
                 rsdIntrinsicBlendDstIn_K(out, in, len);
                 x1 += len << 3;
@@ -208,7 +195,7 @@ void RsdCpuScriptIntrinsicBlend::kernel(const RsForEachStubParamStruct *p,
                 in += len << 3;
             }
         }
-     #endif
+#endif
         for (;x1 < x2; x1++, out++, in++) {
             short4 out_s = convert_short4(*out);
             out_s = (out_s * in->w) >> (short4)8;
@@ -216,9 +203,9 @@ void RsdCpuScriptIntrinsicBlend::kernel(const RsForEachStubParamStruct *p,
         }
         break;
     case BLEND_SRC_OUT:
-    #if defined(ARCH_X86_HAVE_SSSE3)
+#if defined(ARCH_ARM_HAVE_VFP) || defined(ARCH_X86_HAVE_SSSE3)
         if (gArchUseSIMD) {
-            if ((x1 + 8) < x2) {
+            if((x1 + 8) < x2) {
                 uint32_t len = (x2 - x1) >> 3;
                 rsdIntrinsicBlendSrcOut_K(out, in, len);
                 x1 += len << 3;
@@ -226,7 +213,7 @@ void RsdCpuScriptIntrinsicBlend::kernel(const RsForEachStubParamStruct *p,
                 in += len << 3;
             }
         }
-    #endif
+#endif
         for (;x1 < x2; x1++, out++, in++) {
             short4 in_s = convert_short4(*in);
             in_s = (in_s * (short4)(255 - out->w)) >> (short4)8;
@@ -234,9 +221,9 @@ void RsdCpuScriptIntrinsicBlend::kernel(const RsForEachStubParamStruct *p,
         }
         break;
     case BLEND_DST_OUT:
-    #if defined(ARCH_X86_HAVE_SSSE3)
+#if defined(ARCH_ARM_HAVE_VFP) || defined(ARCH_X86_HAVE_SSSE3)
         if (gArchUseSIMD) {
-            if ((x1 + 8) < x2) {
+            if((x1 + 8) < x2) {
                 uint32_t len = (x2 - x1) >> 3;
                 rsdIntrinsicBlendDstOut_K(out, in, len);
                 x1 += len << 3;
@@ -244,7 +231,7 @@ void RsdCpuScriptIntrinsicBlend::kernel(const RsForEachStubParamStruct *p,
                 in += len << 3;
             }
         }
-    #endif
+#endif
         for (;x1 < x2; x1++, out++, in++) {
             short4 out_s = convert_short4(*out);
             out_s = (out_s * (short4)(255 - in->w)) >> (short4)8;
@@ -252,9 +239,9 @@ void RsdCpuScriptIntrinsicBlend::kernel(const RsForEachStubParamStruct *p,
         }
         break;
     case BLEND_SRC_ATOP:
-    #if defined(ARCH_X86_HAVE_SSSE3)
+#if defined(ARCH_ARM_HAVE_VFP) || defined(ARCH_X86_HAVE_SSSE3)
         if (gArchUseSIMD) {
-            if ((x1 + 8) < x2) {
+            if((x1 + 8) < x2) {
                 uint32_t len = (x2 - x1) >> 3;
                 rsdIntrinsicBlendSrcAtop_K(out, in, len);
                 x1 += len << 3;
@@ -262,7 +249,7 @@ void RsdCpuScriptIntrinsicBlend::kernel(const RsForEachStubParamStruct *p,
                 in += len << 3;
             }
         }
-    #endif
+#endif
         for (;x1 < x2; x1++, out++, in++) {
             short4 in_s = convert_short4(*in);
             short4 out_s = convert_short4(*out);
@@ -272,9 +259,9 @@ void RsdCpuScriptIntrinsicBlend::kernel(const RsForEachStubParamStruct *p,
         }
         break;
     case BLEND_DST_ATOP:
-    #if defined(ARCH_X86_HAVE_SSSE3)
+#if defined(ARCH_ARM_HAVE_VFP) || defined(ARCH_X86_HAVE_SSSE3)
         if (gArchUseSIMD) {
-            if ((x1 + 8) < x2) {
+            if((x1 + 8) < x2) {
                 uint32_t len = (x2 - x1) >> 3;
                 rsdIntrinsicBlendDstAtop_K(out, in, len);
                 x1 += len << 3;
@@ -282,7 +269,7 @@ void RsdCpuScriptIntrinsicBlend::kernel(const RsForEachStubParamStruct *p,
                 in += len << 3;
             }
         }
-     #endif
+#endif
         for (;x1 < x2; x1++, out++, in++) {
             short4 in_s = convert_short4(*in);
             short4 out_s = convert_short4(*out);
@@ -292,9 +279,9 @@ void RsdCpuScriptIntrinsicBlend::kernel(const RsForEachStubParamStruct *p,
         }
         break;
     case BLEND_XOR:
-    #if defined(ARCH_X86_HAVE_SSSE3)
+#if defined(ARCH_ARM_HAVE_VFP) || defined(ARCH_X86_HAVE_SSSE3)
         if (gArchUseSIMD) {
-            if ((x1 + 8) < x2) {
+            if((x1 + 8) < x2) {
                 uint32_t len = (x2 - x1) >> 3;
                 rsdIntrinsicBlendXor_K(out, in, len);
                 x1 += len << 3;
@@ -302,7 +289,7 @@ void RsdCpuScriptIntrinsicBlend::kernel(const RsForEachStubParamStruct *p,
                 in += len << 3;
             }
         }
-    #endif
+#endif
         for (;x1 < x2; x1++, out++, in++) {
             *out = *in ^ *out;
         }
@@ -316,9 +303,9 @@ void RsdCpuScriptIntrinsicBlend::kernel(const RsForEachStubParamStruct *p,
         rsAssert(false);
         break;
     case BLEND_MULTIPLY:
-    #if defined(ARCH_X86_HAVE_SSSE3)
+#if defined(ARCH_ARM_HAVE_VFP) || defined(ARCH_X86_HAVE_SSSE3)
         if (gArchUseSIMD) {
-            if ((x1 + 8) < x2) {
+            if((x1 + 8) < x2) {
                 uint32_t len = (x2 - x1) >> 3;
                 rsdIntrinsicBlendMultiply_K(out, in, len);
                 x1 += len << 3;
@@ -326,7 +313,7 @@ void RsdCpuScriptIntrinsicBlend::kernel(const RsForEachStubParamStruct *p,
                 in += len << 3;
             }
         }
-    #endif
+#endif
         for (;x1 < x2; x1++, out++, in++) {
           *out = convert_uchar4((convert_short4(*in) * convert_short4(*out))
                                 >> (short4)8);
@@ -409,7 +396,7 @@ void RsdCpuScriptIntrinsicBlend::kernel(const RsForEachStubParamStruct *p,
         rsAssert(false);
         break;
     case BLEND_ADD:
-    #if defined(ARCH_X86_HAVE_SSSE3)
+#if defined(ARCH_ARM_HAVE_VFP) || defined(ARCH_X86_HAVE_SSSE3)
         if (gArchUseSIMD) {
             if((x1 + 8) < x2) {
                 uint32_t len = (x2 - x1) >> 3;
@@ -419,7 +406,7 @@ void RsdCpuScriptIntrinsicBlend::kernel(const RsForEachStubParamStruct *p,
                 in += len << 3;
             }
         }
-    #endif
+#endif
         for (;x1 < x2; x1++, out++, in++) {
             uint32_t iR = in->x, iG = in->y, iB = in->z, iA = in->w,
                 oR = out->x, oG = out->y, oB = out->z, oA = out->w;
@@ -430,7 +417,7 @@ void RsdCpuScriptIntrinsicBlend::kernel(const RsForEachStubParamStruct *p,
         }
         break;
     case BLEND_SUBTRACT:
-    #if defined(ARCH_X86_HAVE_SSSE3)
+#if defined(ARCH_ARM_HAVE_VFP) || defined(ARCH_X86_HAVE_SSSE3)
         if (gArchUseSIMD) {
             if((x1 + 8) < x2) {
                 uint32_t len = (x2 - x1) >> 3;
@@ -440,7 +427,7 @@ void RsdCpuScriptIntrinsicBlend::kernel(const RsForEachStubParamStruct *p,
                 in += len << 3;
             }
         }
-    #endif
+#endif
         for (;x1 < x2; x1++, out++, in++) {
             int32_t iR = in->x, iG = in->y, iB = in->z, iA = in->w,
                 oR = out->x, oG = out->y, oB = out->z, oA = out->w;

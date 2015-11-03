@@ -46,9 +46,6 @@ void Matrix3x3::load(const rs_matrix3x3 *v) {
 }
 
 void Matrix3x3::loadMultiply(const rs_matrix3x3 *lhs, const rs_matrix3x3 *rhs) {
-    // Use a temporary variable to support the case where one of the inputs
-    // is also the destination, e.g. left.loadMultiply(left, right);
-    Matrix3x3 temp;
     for (int i=0 ; i<3 ; i++) {
         float ri0 = 0;
         float ri1 = 0;
@@ -59,11 +56,10 @@ void Matrix3x3::loadMultiply(const rs_matrix3x3 *lhs, const rs_matrix3x3 *rhs) {
             ri1 += ((const Matrix3x3 *)lhs)->get(j, 1) * rhs_ij;
             ri2 += ((const Matrix3x3 *)lhs)->get(j, 2) * rhs_ij;
         }
-        temp.set(i, 0, ri0);
-        temp.set(i, 1, ri1);
-        temp.set(i, 2, ri2);
+        set(i, 0, ri0);
+        set(i, 1, ri1);
+        set(i, 2, ri2);
     }
-    load(&temp);
 }
 
 void Matrix3x3::transpose() {

@@ -37,7 +37,7 @@ TypeCreate {
     param uint32_t dimX
     param uint32_t dimY
     param uint32_t dimZ
-    param bool mipmaps
+    param bool mips
     param bool faces
     param uint32_t yuv
     ret RsType
@@ -46,7 +46,7 @@ TypeCreate {
 AllocationCreateTyped {
     direct
     param RsType vtype
-    param RsAllocationMipmapControl mipmaps
+    param RsAllocationMipmapControl mips
     param uint32_t usages
     param uintptr_t ptr
     ret RsAllocation
@@ -55,7 +55,7 @@ AllocationCreateTyped {
 AllocationCreateFromBitmap {
     direct
     param RsType vtype
-    param RsAllocationMipmapControl mipmaps
+    param RsAllocationMipmapControl mips
     param const void *data
     param uint32_t usages
     ret RsAllocation
@@ -64,7 +64,7 @@ AllocationCreateFromBitmap {
 AllocationCubeCreateFromBitmap {
     direct
     param RsType vtype
-    param RsAllocationMipmapControl mipmaps
+    param RsAllocationMipmapControl mips
     param const void *data
     param uint32_t usages
     ret RsAllocation
@@ -79,6 +79,11 @@ AllocationGetSurface {
 AllocationSetSurface {
     param RsAllocation alloc
     param RsNativeWindow sur
+    sync
+    }
+
+AllocationDestroy {
+    param RsAllocation alloc
     sync
     }
 
@@ -130,15 +135,6 @@ AllocationCopyToBitmap {
     param void * data
     }
 
-AllocationGetPointer {
-    param RsAllocation va
-    param uint32_t lod
-    param RsAllocationCubemapFace face
-    param uint32_t z
-    param uint32_t array
-    param size_t *stride
-    ret void *s
-    }
 
 Allocation1DData {
     param RsAllocation va
@@ -295,15 +291,6 @@ ScriptForEach {
     param const RsScriptCall * sc
 }
 
-ScriptForEachMulti {
-    param RsScript s
-    param uint32_t slot
-    param RsAllocation * ains
-    param RsAllocation aout
-    param const void * usr
-    param const RsScriptCall * sc
-}
-
 ScriptSetVarI {
     param RsScript s
     param uint32_t slot
@@ -352,7 +339,7 @@ ScriptSetVarVE {
     param uint32_t slot
     param const void * data
     param RsElement e
-    param const uint32_t * dims
+    param const size_t * dims
     }
 
 
@@ -417,3 +404,4 @@ AllocationIoSend {
 AllocationIoReceive {
     param RsAllocation alloc
     }
+
